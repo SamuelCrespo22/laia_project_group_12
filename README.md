@@ -247,6 +247,8 @@ docker compose -f docker/docker-compose.yml up --build
 
 ## 8. Milestones and Evaluation
 
+For the complete list of GitHub issues and task assignments across milestones, refer to the Milestones and Issues Roadmap in `docs/milestones_and_issues.md`.
+
 | Milestone | Due Date | Core Deliverables |
 | :--- | :---: | :--- |
 | **Checkpoint** | **10 November** | Baseline model, versioning (Git & MLflow), CI/CD, containerized serving, endpoint registration. |

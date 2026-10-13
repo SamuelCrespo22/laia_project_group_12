@@ -1,0 +1,31 @@
+project:
+  name: "flight-delay-mlops"
+  version: "0.1.0"
+  description: "End-to-End MLOps Pipeline for Flight Delay Severity Prediction"
+
+target:
+  name: "delay_severity"
+  classes:
+    - "on_time"        # Arrival delay < 15 min
+    - "moderate_delay" # 15 <= Arrival delay < 60 min
+    - "severe_delay"   # Arrival delay >= 60 min
+  thresholds:
+    on_time_max: 15
+    moderate_delay_max: 60
+
+data:
+  raw_dir: "data/raw"
+  processed_dir: "data/processed"
+  training_years:
+    - 2022
+    - 2023
+
+mlflow:
+  tracking_uri: "http://localhost:5000"
+  experiment_name: "flight-delay-severity-prediction"
+
+api:
+  host: "0.0.0.0"
+  port: 8000
+  endpoint: "/classify"
+

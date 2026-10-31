@@ -5,6 +5,7 @@ import hashlib
 import json
 import logging
 import os
+import shutil
 import tempfile
 import zipfile
 from pathlib import Path
@@ -17,52 +18,11 @@ import yaml
 
 LOG = logging.getLogger('bts.ingestion')
 BASE_URL = 'https://transtats.bts.gov/PREZIP/'
-# BTS PREZIP headings -> evaluation contract headings. No sampling or flight filtering.
-COLUMN_MAP = {
-    'Year': 'YEAR', 'Quarter': 'QUARTER', 'Month': 'MONTH',
-    'DayofMonth': 'DAY_OF_MONTH', 'DayOfWeek': 'DAY_OF_WEEK',
-    'Reporting_Airline': 'OP_UNIQUE_CARRIER',
-    'DOT_ID_Reporting_Airline': 'OP_CARRIER_AIRLINE_ID',
-    'Tail_Number': 'TAIL_NUM',
-    'Flight_Number_Reporting_Airline': 'OP_CARRIER_FL_NUM',
-    'OriginAirportID': 'ORIGIN_AIRPORT_ID',
-    'OriginAirportSeqID': 'ORIGIN_AIRPORT_SEQ_ID',
-    'OriginCityMarketID': 'ORIGIN_CITY_MARKET_ID',
-    'Origin': 'ORIGIN', 'OriginCityName': 'ORIGIN_CITY_NAME',
-    'OriginState': 'ORIGIN_STATE_ABR', 'OriginStateName': 'ORIGIN_STATE_NM',
-    'OriginWac': 'ORIGIN_WAC',
-    'DestAirportID': 'DEST_AIRPORT_ID',
-    'DestAirportSeqID': 'DEST_AIRPORT_SEQ_ID',
-    'DestCityMarketID': 'DEST_CITY_MARKET_ID',
-    'Dest': 'DEST', 'DestCityName': 'DEST_CITY_NAME',
-    'DestState': 'DEST_STATE_ABR', 'DestStateName': 'DEST_STATE_NM',
-    'DestWac': 'DEST_WAC',
-    'CRSDepTime': 'CRS_DEP_TIME', 'DepTime': 'DEP_TIME',
-    'DepDelay': 'DEP_DELAY', 'TaxiOut': 'TAXI_OUT',
-    'TaxiIn': 'TAXI_IN', 'CRSArrTime': 'CRS_ARR_TIME',
-    'ArrTime': 'ARR_TIME', 'ArrDelay': 'ARR_DELAY',
-    'Cancelled': 'CANCELLED', 'Diverted': 'DIVERTED',
-    'CRSElapsedTime': 'CRS_ELAPSED_TIME', 'Flights': 'FLIGHTS',
-    'Distance': 'DISTANCE', 'DistanceGroup': 'DISTANCE_GROUP',
-    'FirstDepTime': 'FIRST_DEP_TIME', 'TotalAddGTime': 'TOTAL_ADD_GTIME',
-    'LongestAddGTime': 'LONGEST_ADD_GTIME',
-}
-EXPECTED = list(COLUMN_MAP.values()) + ['FL_DATE']
-# Consistent nullable typed schema across months and chunks.
-INTEGER_COLUMNS = {
-    'YEAR', 'QUARTER', 'MONTH', 'DAY_OF_MONTH', 'DAY_OF_WEEK',
-    'OP_CARRIER_AIRLINE_ID', 'OP_CARRIER_FL_NUM', 'ORIGIN_AIRPORT_ID',
-    'ORIGIN_AIRPORT_SEQ_ID', 'ORIGIN_CITY_MARKET_ID', 'ORIGIN_WAC',
-    'DEST_AIRPORT_ID', 'DEST_AIRPORT_SEQ_ID', 'DEST_CITY_MARKET_ID',
-    'DEST_WAC', 'CRS_DEP_TIME', 'DEP_TIME', 'CRS_ARR_TIME',
-    'ARR_TIME', 'DISTANCE_GROUP', 'FIRST_DEP_TIME', 'FLIGHTS',
-}
-FLOAT_COLUMNS = {
-    'DEP_DELAY', 'TAXI_OUT', 'TAXI_IN', 'ARR_DELAY',
-    'CRS_ELAPSED_TIME', 'DISTANCE', 'TOTAL_ADD_GTIME',
-    'LONGEST_ADD_GTIME', 'CANCELLED', 'DIVERTED',
-}
-
+# Support direct execution from the repository root and module imports.
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from src.data.contract import (COLUMN_MAP, EXPECTED, INTEGER_COLUMNS,
+                               FLOAT_COLUMNS, validate_values)
 
 
 def sha256(path: Path) -> str:
@@ -80,16 +40,23 @@ def filenames(year: int, month: int):
     ]
 
 
-def download_zip(session: requests.Session, year: int, month: int, target: Path):
+def download_zip(session: requests.Session, year: int, month: int, target: Path,
+                 max_bytes: int = 1024**3, min_free_bytes: int = 512 * 1024**2):
     """Download candidates, skipping only genuine HTTP 404 responses."""
     for filename in filenames(year, month):
         with session.get(BASE_URL + filename, stream=True, timeout=(30, 180)) as response:
             if response.status_code == 404:
                 continue
             response.raise_for_status()
+            size = 0
             with target.open('wb') as fh:
                 for block in response.iter_content(chunk_size=1024 * 1024):
                     if block:
+                        size += len(block)
+                        if size > max_bytes:
+                            raise ValueError('BTS archive exceeds configured download limit')
+                        if shutil.disk_usage(target.parent).free < len(block) + min_free_bytes:
+                            raise OSError('Insufficient free disk space for BTS archive')
                         fh.write(block)
             return
     raise FileNotFoundError(f'No BTS archive found for {year}-{month:02d}')
@@ -101,6 +68,7 @@ def select_columns(header):
     if missing:
         raise ValueError(f'Missing required BTS columns: {missing}')
     selected = [lookup[name.casefold()] for name in COLUMN_MAP]
+    LOG.info('Source schema verified: %d required columns', len(selected))
     rename = {lookup[name.casefold()]: dest for name, dest in COLUMN_MAP.items()}
     return selected, rename
 
@@ -120,22 +88,40 @@ def normalize_chunk(chunk, rename, year, month):
 
 
 def validate_parquet(path: Path, year: int, month: int, expected_count: int | None = None):
-    """Local structural checks. Integrate team's Issue #1.6 contract as an additional check."""
-    parquet = pq.ParquetFile(path)
-    columns = parquet.schema_arrow.names
-    if columns != EXPECTED:
-        raise ValueError(f'Unexpected schema: {columns}')
-    if parquet.metadata.num_rows == 0:
-        raise ValueError('Empty monthly dataset')
-    if expected_count is not None and parquet.metadata.num_rows != expected_count:
-        raise ValueError('Mismatch between processed and stored row counts')
-    for batch in parquet.iter_batches(batch_size=100_000, columns=['YEAR', 'MONTH', 'FL_DATE']):
-        frame = batch.to_pandas()
-        if not ((frame['YEAR'] == year) & (frame['MONTH'] == month)).all():
-            raise ValueError('Wrong year/month values in output')
-        if frame['FL_DATE'].isna().any():
-            raise ValueError('Missing FL_DATE in output')
-    return parquet.metadata.num_rows
+    """Validate raw column names, types, calendar values and record counts."""
+    with pq.ParquetFile(path) as parquet:
+        columns = parquet.schema_arrow.names
+        if columns != EXPECTED:
+            raise ValueError(f'Unexpected schema: {columns}')
+        for field in parquet.schema_arrow:
+            if field.name in INTEGER_COLUMNS:
+                valid = pa.types.is_int64(field.type)
+            elif field.name in FLOAT_COLUMNS:
+                valid = pa.types.is_float64(field.type)
+            elif field.name == 'FL_DATE':
+                valid = pa.types.is_timestamp(field.type)
+            else:
+                valid = pa.types.is_string(field.type) or pa.types.is_large_string(field.type)
+            if not valid:
+                raise ValueError(f'Unexpected type for {field.name}: {field.type}')
+        if parquet.metadata.num_rows == 0:
+            raise ValueError('Empty monthly dataset')
+        if expected_count is not None and parquet.metadata.num_rows != expected_count:
+            raise ValueError('Mismatch between processed and stored row counts')
+        for batch in parquet.iter_batches(batch_size=100_000, columns=['YEAR', 'MONTH', 'DAY_OF_MONTH', 'FL_DATE', 'CANCELLED', 'DIVERTED',
+                                                           'DISTANCE', 'CRS_ELAPSED_TIME', 'CRS_DEP_TIME', 'CRS_ARR_TIME']):
+            frame = batch.to_pandas()
+            if not ((frame['YEAR'] == year) & (frame['MONTH'] == month)).all():
+                raise ValueError('Wrong year/month values in output')
+            if frame['FL_DATE'].isna().any():
+                raise ValueError('Missing FL_DATE in output')
+            validate_values(frame)
+            dates = frame['FL_DATE'].dt
+            if not ((dates.year == year) & (dates.month == month)).all():
+                raise ValueError('FL_DATE does not match output year/month')
+        LOG.info('%04d-%02d schema verified: columns=%d rows=%d',
+                 year, month, len(columns), parquet.metadata.num_rows)
+        return parquet.metadata.num_rows
 
 
 def convert_zip(zip_path: Path, output: Path, year: int, month: int, chunksize: int):
@@ -185,6 +171,12 @@ def load_config(path: Path):
     if not months or len(set(months)) != len(months) or any(m < 1 or m > 12 for m in months):
         raise ValueError('ingestion.months must contain distinct months from 1 to 12')
     settings['months'] = months
+    if int(settings['chunk_size']) <= 0:
+        raise ValueError('ingestion.chunk_size must be positive')
+    if int(settings.get('max_download_bytes', 1024**3)) <= 0:
+        raise ValueError('ingestion.max_download_bytes must be positive')
+    if int(settings.get('min_free_disk_bytes', 512 * 1024**2)) < 0:
+        raise ValueError('ingestion.min_free_disk_bytes must be nonnegative')
     return settings, years
 
 
@@ -209,14 +201,17 @@ def run(config_path: Path):
                     except (ValueError, OSError, pa.ArrowException) as exc:
                         LOG.warning('%s fails validation: %s; rebuilding', key, exc)
                     else:
-                        LOG.info('%s skipped (verified %d rows)', key, num_rows)
+                        LOG.info('%s skipped (verified %d rows) sha256=%s', key, num_rows, existing['sha256'])
                         continue
                 LOG.info('%s downloading / converting', key)
                 with tempfile.TemporaryDirectory(dir=output_dir) as temp:
                     temp = Path(temp)
                     archive = temp / 'source.zip'
                     pending = temp / 'output.parquet'
-                    download_zip(session, year, month, archive)
+                    download_zip(session, year, month, archive,
+                                 int(settings.get('max_download_bytes', 1024**3)),
+                                 int(settings.get('min_free_disk_bytes', 512 * 1024**2)))
+                    LOG.info('%s source sha256=%s', key, sha256(archive))
                     count = convert_zip(archive, pending, year, month, chunksize)
                     validate_parquet(pending, year, month, count)
                     digest = sha256(pending)

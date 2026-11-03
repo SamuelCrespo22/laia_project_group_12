@@ -50,12 +50,12 @@ mlartifacts/
 .dvc/tmp
 
 # Data files (keep raw & processed data local/in DVC, not in git)
-data/raw/*
-!data/raw/.gitkeep
-data/processed/*
-!data/processed/.gitkeep
-data/interim/*
-!data/interim/.gitkeep
+#data/raw/*
+#!data/raw/.gitkeep
+#data/processed/*
+#!data/processed/.gitkeep
+#data/interim/*
+#!data/interim/.gitkeep
 
 # Models & Artifacts
 models/*

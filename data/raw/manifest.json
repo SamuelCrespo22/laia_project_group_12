@@ -1,0 +1,122 @@
+{
+  "2022-01": {
+    "file": "flights_2022_01.parquet",
+    "rows": 537902,
+    "sha256": "6e98c849fa41064d2404261d4e3c631b683a8d52172a9a2c0c16f4211adc7d88"
+  },
+  "2022-02": {
+    "file": "flights_2022_02.parquet",
+    "rows": 495713,
+    "sha256": "bccffa3865050b48aea9be91ff9f5e64be0c463f99f777126d5e7f8f3c6ecbb6"
+  },
+  "2022-03": {
+    "file": "flights_2022_03.parquet",
+    "rows": 564853,
+    "sha256": "2f502352bd60dbb6c23f544410f026bfe15f3e9ca9e67667a58f66a308fa99a1"
+  },
+  "2022-04": {
+    "file": "flights_2022_04.parquet",
+    "rows": 556502,
+    "sha256": "3a3e91afaea25eb2e75e386807ea664ecb5a347f390de1906674d37eef69ffb7"
+  },
+  "2022-05": {
+    "file": "flights_2022_05.parquet",
+    "rows": 578819,
+    "sha256": "41aef279be6c530501a90f77359f6c98ac9414aba063ce23bc9e8cdfd3f6e486"
+  },
+  "2022-06": {
+    "file": "flights_2022_06.parquet",
+    "rows": 577283,
+    "sha256": "3084e0627db4e63df546c46fa4584a6b6680fd7bc135616d53b7581a9823ed5b"
+  },
+  "2022-07": {
+    "file": "flights_2022_07.parquet",
+    "rows": 594957,
+    "sha256": "212296b2daf661a7917ec3756666f5c22dfb5c0615a484c0e5c902989eeb463d"
+  },
+  "2022-08": {
+    "file": "flights_2022_08.parquet",
+    "rows": 589810,
+    "sha256": "d910d9cc0afe68b6a1c0de61dfd25742593bead397e3024d264943354aa902bf"
+  },
+  "2022-09": {
+    "file": "flights_2022_09.parquet",
+    "rows": 557494,
+    "sha256": "2b0c0104702e7c61c317b913319452cb99ae7cf69060dc806cfaed2f230f91dd"
+  },
+  "2022-10": {
+    "file": "flights_2022_10.parquet",
+    "rows": 572287,
+    "sha256": "ada06e641752056a2539495c65d2f428740c63f0d92e5e1f816034bb017ca9f0"
+  },
+  "2022-11": {
+    "file": "flights_2022_11.parquet",
+    "rows": 546410,
+    "sha256": "99e8ebeaff3b291befd7aa67086f39a2cd1aa4d14b975db4ca6d9c00786cffb5"
+  },
+  "2022-12": {
+    "file": "flights_2022_12.parquet",
+    "rows": 557095,
+    "sha256": "022b42412198d33c56dbc5d36d12ad9f6bc0b5f75fdb410bcf925f7b0495e0c4"
+  },
+  "2023-01": {
+    "file": "flights_2023_01.parquet",
+    "rows": 538837,
+    "sha256": "5c394de8cc021926ed219cb4c2585b696f804bb60366a22026db62f5402dd144"
+  },
+  "2023-02": {
+    "file": "flights_2023_02.parquet",
+    "rows": 502749,
+    "sha256": "3498c04136f178520c6227f215fd0a90498bebd91028bdda74b5018614e2959e"
+  },
+  "2023-03": {
+    "file": "flights_2023_03.parquet",
+    "rows": 580322,
+    "sha256": "f6f2da0d33bfa91799faca63fb0fc385bb958917df8c471c1dfb6b256e36764a"
+  },
+  "2023-04": {
+    "file": "flights_2023_04.parquet",
+    "rows": 561441,
+    "sha256": "68aafc3fd08878319654618b8875400273d958b1ba7dc7ba4fcfdd9f227410ab"
+  },
+  "2023-05": {
+    "file": "flights_2023_05.parquet",
+    "rows": 579958,
+    "sha256": "2c192ff5fce9b6d2cd2859338ce58a16baebc7f461febabc4cbda6525497342e"
+  },
+  "2023-06": {
+    "file": "flights_2023_06.parquet",
+    "rows": 577262,
+    "sha256": "9956180b293e3717aaf852e2a00f15bdf396c525af7333906b9be07b04ca0c02"
+  },
+  "2023-07": {
+    "file": "flights_2023_07.parquet",
+    "rows": 601866,
+    "sha256": "2abf07d304a46879a0c654d7364502281d9b661f797d9fa19409cc4f0cd5681d"
+  },
+  "2023-08": {
+    "file": "flights_2023_08.parquet",
+    "rows": 602987,
+    "sha256": "4bfdcca3853ab3a42039b15d201dcea69cca8f593f3a3b92f9825a58b2bf9f0d"
+  },
+  "2023-09": {
+    "file": "flights_2023_09.parquet",
+    "rows": 569338,
+    "sha256": "8d7505839820e88c788c55caaea4ff03ee5c6bc65f09cf7df5eef2f1832c244f"
+  },
+  "2023-10": {
+    "file": "flights_2023_10.parquet",
+    "rows": 598968,
+    "sha256": "9b37785a1466e2538c803f54d9304086d69f17a161b08162e08cf3880d9d0ba3"
+  },
+  "2023-11": {
+    "file": "flights_2023_11.parquet",
+    "rows": 563777,
+    "sha256": "1e351f104814d49c4050b7237ced7e69d0c4f52e8f8a119e8405f3bb271e466e"
+  },
+  "2023-12": {
+    "file": "flights_2023_12.parquet",
+    "rows": 570394,
+    "sha256": "de70d677990a8341336da3f2631ea10e20a9bb4edaa598e02ec8b59a094aea6c"
+  }
+}

@@ -20,6 +20,14 @@ data:
     - 2022
     - 2023
 
+ingestion:
+  years: [2022, 2023]
+  months: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+  output_dir: data/raw
+  chunk_size: 100000
+  max_download_bytes: 1073741824
+  min_free_disk_bytes: 536870912
+
 mlflow:
   tracking_uri: "http://localhost:5000"
   experiment_name: "flight-delay-severity-prediction"

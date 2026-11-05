@@ -1,0 +1,43 @@
+
+# Git
+.git
+.gitignore
+
+# Python environments
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Development and notebooks
+notebooks/
+.ipynb_checkpoints/
+.vscode/
+.idea/
+tests/
+
+# Local datasets and generated artifacts
+data/
+models/
+reports/
+mlruns/
+mlartifacts/
+
+# Secrets and environment files
+.env
+.env.*
+*.pem
+*.key
+
+# Documentation and local outputs
+docs/
+*.log
+*.tmp
+
+# Operating system files
+.DS_Store
+Thumbs.db

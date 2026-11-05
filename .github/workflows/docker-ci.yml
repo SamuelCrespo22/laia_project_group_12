@@ -1,0 +1,122 @@
+
+name: Docker CI
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "docker/**"
+      - "src/**"
+      - "configs/**"
+      - "tests/test_docker_packaging.py"
+      - ".dockerignore"
+      - ".github/workflows/docker-ci.yml"
+
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "docker/**"
+      - "src/**"
+      - "configs/**"
+      - "tests/test_docker_packaging.py"
+      - ".dockerignore"
+      - ".github/workflows/docker-ci.yml"
+
+jobs:
+  docker-integration:
+    name: Docker Build and Integration Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate Docker Compose
+        run: |
+          docker compose -f docker/docker-compose.yml config --quiet
+
+      - name: Build Serving image
+        run: |
+          docker build \
+            -f docker/Dockerfile \
+            -t flight-delay-serving:dev .
+
+      - name: Build Training image
+        run: |
+          docker build \
+            -f docker/Dockerfile.train \
+            -t flight-delay-training:dev .
+
+      - name: Verify non-root users
+        run: |
+          docker run --rm --entrypoint id flight-delay-serving:dev \
+            | grep "uid=10001(appuser)"
+
+          docker run --rm --entrypoint id flight-delay-training:dev \
+            | grep "uid=10001(trainer)"
+
+      - name: Start API and MLflow
+        run: |
+          docker compose -f docker/docker-compose.yml up -d --no-build
+
+      - name: Wait for API health
+        run: |
+          for i in $(seq 1 30); do
+            if curl --fail --silent http://localhost:8000/health; then
+              echo "API health check passed"
+              exit 0
+            fi
+            sleep 2
+          done
+
+          echo "API did not become healthy"
+          exit 1
+
+      - name: Wait for MLflow
+        run: |
+          for i in $(seq 1 30); do
+            if curl --fail --silent http://localhost:5000/; then
+              echo "MLflow is responding"
+              exit 0
+            fi
+            sleep 2
+          done
+
+          echo "MLflow did not become available"
+          exit 1
+
+      - name: Test Training to MLflow connection
+        run: |
+          docker compose -f docker/docker-compose.yml run \
+            --rm -T --no-deps \
+            --entrypoint python training \
+            -c "import os, mlflow; \
+          assert os.environ['MLFLOW_TRACKING_URI'] == 'http://mlflow:5000'; \
+          mlflow.set_tracking_uri(os.environ['MLFLOW_TRACKING_URI']); \
+          mlflow.set_experiment('docker_ci_test'); \
+          run = mlflow.start_run(); \
+          mlflow.log_metric('docker_ci_success', 1.0); \
+          mlflow.end_run(); \
+          print('Training to MLflow: PASSED')"
+
+      - name: Record Docker image sizes
+        run: |
+          docker image inspect flight-delay-serving:dev \
+            --format='Serving image: {{.Size}} bytes'
+
+          docker image inspect flight-delay-training:dev \
+            --format='Training image: {{.Size}} bytes'
+
+      - name: Show container logs on failure
+        if: failure()
+        run: |
+          docker compose -f docker/docker-compose.yml ps
+          docker compose -f docker/docker-compose.yml logs --tail=100
+
+      - name: Stop containers
+        if: always()
+        run: |
+          docker compose -f docker/docker-compose.yml down

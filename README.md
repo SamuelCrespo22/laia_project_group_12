@@ -1,6 +1,6 @@
 # End-to-End MLOps Pipeline for Flight Delay Severity Prediction
 
-**Advanced Artificial Intelligence Laboratory (LAIA) — Academic Year 2026/2027**  
+**Advanced Artificial Intelligence Laboratory (LAIA) - 2026/2027**  
 *Department of Informatics Engineering (DEI) — University of Coimbra*  
 **Team:** Group 12
 

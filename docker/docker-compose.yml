@@ -1,39 +1,55 @@
+
 services:
   api:
     build:
       context: ..
       dockerfile: docker/Dockerfile
-    container_name: flight-delay-api
+    image: flight-delay-serving:dev
     ports:
       - "8000:8000"
     environment:
-      - MLFLOW_TRACKING_URI=http://mlflow:5000
+      MLFLOW_TRACKING_URI: http://mlflow:5000
     depends_on:
-      - mlflow
-
+      mlflow:
+        condition: service_started
+    restart: unless-stopped
   mlflow:
     image: ghcr.io/mlflow/mlflow:v2.10.0
-    container_name: flight-delay-mlflow
     ports:
       - "5000:5000"
-    command: mlflow server --backend-store-uri sqlite:///mlflow.db --default-artifact-root /mlartifacts --host 0.0.0.0 --port 5000
+    command:
+      - mlflow
+      - server
+      - --backend-store-uri
+      - sqlite:////mlflow/mlflow.db
+      - --serve-artifacts
+      - --artifacts-destination
+      - /mlflow/artifacts
+      - --host
+      - 0.0.0.0
+      - --port
+      - "5000"
     volumes:
-      - mlflow-data:/mlartifacts
+      - mlflow-data:/mlflow
+    restart: unless-stopped
 
-  prometheus:
-    image: prom/prometheus:latest
-    container_name: flight-delay-prometheus
-    ports:
-      - "9090:9090"
 
-  grafana:
-    image: grafana/grafana:latest
-    container_name: flight-delay-grafana
-    ports:
-      - "3000:3000"
+  training:
+    profiles:
+      - training
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.train
+    image: flight-delay-training:dev
+    environment:
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+    volumes:
+      - ../data:/app/data:ro
+      - ../models:/app/models
+      - ../reports:/app/reports
     depends_on:
-      - prometheus
+      mlflow:
+        condition: service_started
 
 volumes:
   mlflow-data:
-

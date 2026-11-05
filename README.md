@@ -72,7 +72,7 @@ laia_project_group_12/
 │   └── workflows/
 │       └── ci.yml               # CI: flake8 + pytest on pushes and pull requests
 ├── configs/
-│   └── config.yaml              # Project parameters (target, ingestion, MLflow, API)
+│   └── config.yaml              # Project parameters (target, ingestion, preprocessing, MLflow, API)
 ├── data/
 │   ├── raw/                     # Monthly BTS Parquet files (Git LFS) + manifest.json
 │   ├── interim/                 # Intermediate datasets (git-ignored)
@@ -93,7 +93,8 @@ laia_project_group_12/
 │   │   └── schemas.py           # Pydantic request and response schemas
 │   ├── data/
 │   │   ├── contract.py          # Data contract: columns, types and value rules
-│   │   └── preprocessor.py      # Flight filtering and target creation
+│   │   ├── preprocessor.py      # Leakage-safe filtering, target and features (train + serve)
+│   │   └── make_dataset.py      # raw -> filtered -> features: python -m src.data.make_dataset
 │   ├── features/                # Feature encoders (planned, Issue 1.4)
 │   ├── models/                  # Training and evaluation (planned, Issue 2.1)
 │   ├── monitoring/              # Drift and subgroup monitoring (planned, Milestone 4)
@@ -195,6 +196,10 @@ Execute automated unit tests using `pytest`:
 ```bash
 pytest tests/ -v
 ```
+
+To build the model dataset from the raw files (after `git lfs pull`), run
+`python -m src.data.make_dataset`. It writes `data/processed/dataset.parquet`
+and a manifest; re-runs produce identical files.
 
 ### 6.5. Launch the Local Development Server
 Start the FastAPI server with hot-reloading:

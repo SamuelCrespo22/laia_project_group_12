@@ -122,7 +122,7 @@ Accepts a JSON payload containing an `instances` array of flight records with ra
   "instances": [
     {
       "FL_DATE": "2025-05-15",
-      "OP_CARRIER": "AA",
+      "OP_UNIQUE_CARRIER": "AA",
       "ORIGIN": "JFK",
       "DEST": "LAX",
       "CRS_DEP_TIME": 900,
@@ -132,7 +132,7 @@ Accepts a JSON payload containing an `instances` array of flight records with ra
     },
     {
       "FL_DATE": "2025-05-16",
-      "OP_CARRIER": "DL",
+      "OP_UNIQUE_CARRIER": "DL",
       "ORIGIN": "ATL",
       "DEST": "ORD",
       "CRS_DEP_TIME": 1400,

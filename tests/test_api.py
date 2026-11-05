@@ -15,14 +15,14 @@ def test_classify_valid_batch():
         "instances": [
             {
                 "FL_DATE": "2025-05-15",
-                "OP_CARRIER": "AA",
+                "OP_UNIQUE_CARRIER": "AA",
                 "ORIGIN": "JFK",
                 "DEST": "LAX",
                 "CRS_DEP_TIME": 900
             },
             {
                 "FL_DATE": "2025-05-16",
-                "OP_CARRIER": "DL",
+                "OP_UNIQUE_CARRIER": "DL",
                 "ORIGIN": "ATL",
                 "DEST": "ORD",
                 "CRS_DEP_TIME": 1400

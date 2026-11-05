@@ -172,7 +172,7 @@ _NOT_INGESTED_POST_DEPARTURE = (
     r'DEP_DELAY.*', r'DEP_DEL15', r'WHEELS_OFF', r'WHEELS_ON', r'ARR_DELAY.*',
     r'ARR_DEL15', r'ACTUAL_ELAPSED_TIME', r'AIR_TIME', r'CARRIER_DELAY',
     r'WEATHER_DELAY', r'NAS_DELAY', r'SECURITY_DELAY', r'LATE_AIRCRAFT_DELAY',
-    r'CANCELLATION_CODE', r'DIV_.*',
+    r'CANCELLATION_CODE', r'DIV_.*', r'DIV\d+_.*',
 )
 POST_DEPARTURE_PATTERNS: tuple[str, ...] = tuple(dict.fromkeys(
     [rf'^{re.escape(spec.name)}$' for spec in COLUMNS if not spec.pre_departure]
@@ -371,7 +371,8 @@ FlightRecord = create_model(
 )
 
 
-def _pandas_dtype(spec: ColumnSpec) -> str:
+def pandas_dtype(spec: ColumnSpec) -> str:
+    """pandas dtype of a column, shared by API requests and preprocessing."""
     return {'int': 'Int64', 'float': 'Float64', 'code': 'string',
             'text': 'string', 'date': 'datetime64[ns]'}[spec.kind]
 
@@ -384,5 +385,5 @@ def records_to_frame(records: Sequence[BaseModel]) -> pd.DataFrame:
         if spec.kind == 'date':
             frame[name] = pd.to_datetime(frame[name])
         else:
-            frame[name] = frame[name].astype(_pandas_dtype(spec))
+            frame[name] = frame[name].astype(pandas_dtype(spec))
     return frame

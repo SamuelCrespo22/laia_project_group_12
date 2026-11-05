@@ -72,3 +72,141 @@ with `git lfs pull` after cloning/pulling the repository. Authors use normal
 Record the Git commit with each training run to identify its data version.
 VM-based dataset storage/versioning is deferred. Historical binary files
 in pre-LFS commits remain; this delivery does not rewrite shared history.
+
+
+
+## Issue 1.5: Temporal train, validation and test splits
+
+### Objective
+
+The dataset is divided chronologically to simulate a realistic
+future-flight prediction scenario.
+
+Random splitting is not used because it would mix historical and
+future observations, producing an evaluation less representative
+of deployment on subsequent months.
+
+### Temporal boundaries
+
+All boundaries are defined in `configs/config.yaml`.
+
+| Split | Start (inclusive) | End (exclusive) | Months |
+| --- | --- | --- | --- |
+| Train | 2022-01-01 | 2023-07-01 | 18 |
+| Validation | 2023-07-01 | 2023-10-01 | 3 |
+| Test | 2023-10-01 | 2024-01-01 | 3 |
+
+The split uses the original BTS `FL_DATE` column.
+
+Intervals are contiguous and non-overlapping. Records outside the
+configured range are rejected.
+
+### Seasonality and distribution shift
+
+Exploratory analysis of the eligible flights identified substantial
+monthly variation in delay severity.
+
+For example:
+
+- June 2023: 10.13% severe delays.
+- July 2023: 11.39% severe delays.
+- September 2023: 6.22% severe delays.
+- November 2023: 3.55% severe delays.
+- December 2022: 9.85% severe delays.
+
+These observations motivate evaluating the model on future months
+rather than using a random split.
+
+The validation period includes the high-delay summer months of
+July and August 2023, while the test period covers the final
+quarter of 2023.
+
+Only two calendar years are available, so these observations do
+not establish a stable long-term seasonal pattern.
+
+### Dataset preservation and eligibility
+
+The temporal split preserves the original BTS columns and records.
+
+Flight eligibility and target generation belong to preprocessing.
+
+For the class-distribution report, eligible flights satisfy:
+
+- `CANCELLED == 0`
+- `DIVERTED == 0`
+- `ARR_DELAY` is not missing
+
+Delay severity is defined as:
+
+- `on_time`: arrival delay below 15 minutes
+- `moderate_delay`: arrival delay from 15 to below 60 minutes
+- `severe_delay`: arrival delay of 60 minutes or more
+
+The arrival delay is used to construct the target and must never
+be included among prediction features.
+
+### Reproducibility and storage
+
+The pipeline is implemented in:
+
+- `src/data/temporal_split.py`
+- `scripts/create_temporal_splits.py`
+
+Run from the repository root:
+
+`python -m scripts.create_temporal_splits --config configs/config.yaml`
+
+PyArrow processes Parquet files incrementally using the configured
+batch size and Zstandard compression.
+
+Each successful execution creates a versioned directory under
+`data/processed/runs/`.
+
+The active version is identified by:
+
+`data/processed/temporal_split_manifest.json`
+
+Downstream training code must read dataset paths from this
+manifest rather than assume fixed Parquet filenames.
+
+Generated processed datasets are excluded from Git.
+
+### Observed dataset sizes
+
+The complete BTS dataset contains 13,577,024 flight records.
+
+| Split | Total records | Eligible records |
+| --- | ---: | ---: |
+| Train | 10,069,694 | 9,811,971 |
+| Validation | 1,774,191 | 1,738,087 |
+| Test | 1,733,139 | 1,725,357 |
+| Total | 13,577,024 | 13,275,415 |
+
+The persisted Parquet files were checked against the manifest.
+Row counts, date boundaries and class totals passed validation.
+
+### Model development policy
+
+The training split is used for model fitting.
+
+The validation split is used for model comparison, hyperparameter
+selection and decision-making during development.
+
+The test split is reserved for final evaluation after model
+selection. It must not be used for tuning or choosing models.
+
+If cross-validation is introduced, it must preserve temporal
+ordering and use training-period data only.
+
+### Automated verification
+
+Synthetic tests verify temporal boundaries, determinism,
+missing dates, out-of-range records, YAML configuration,
+Parquet persistence, class counts and preservation of the
+previously published manifest after an input-reading failure.
+
+The real-data execution additionally verified the expected
+13,577,024 records and temporal boundaries.
+
+The tests do not yet cover every possible interruption or
+filesystem failure.

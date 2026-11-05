@@ -72,3 +72,64 @@ with `git lfs pull` after cloning/pulling the repository. Authors use normal
 Record the Git commit with each training run to identify its data version.
 VM-based dataset storage/versioning is deferred. Historical binary files
 in pre-LFS commits remain; this delivery does not rewrite shared history.
+
+## Issue #12: data contract and schema validation
+
+`COLUMNS` in `src/data/contract.py` is the single definition of every
+column: TranStats name, PREZIP heading, type, valid range, whether it is
+known before the scheduled departure, and its role in `/classify` requests.
+Ingestion (`COLUMN_MAP`, raw dtypes, `validate_values`), the API request
+schema (`FlightRecord`) and the leakage checks (`POST_DEPARTURE_PATTERNS`)
+are all derived from it, so training and serving cannot disagree on what a
+valid flight looks like (no train/serve skew). It is a Python module rather
+than a YAML file because ingestion already used it and Pydantic models can
+be generated from it directly.
+
+### Required and optional request fields
+
+Required: `FL_DATE`, `OP_UNIQUE_CARRIER`, `ORIGIN`, `DEST`, `CRS_DEP_TIME`.
+Without them a record does not identify a scheduled flight, and carrier and
+origin are also the subgroups that monitoring must report on. Requiring more
+fields would increase the risk of rejecting evaluation records that omit
+them; every other pre-departure column is optional. Calendar fields
+(`YEAR`, `MONTH`, `DAY_OF_WEEK`, ...) are derivable from `FL_DATE`, and
+`DEP_TIME_BLK`/`ARR_TIME_BLK` from the scheduled times; these columns are not
+stored in the raw files, so features should derive them.
+
+`OP_CARRIER` (the IATA carrier code, also a TranStats form field) is used as
+`OP_UNIQUE_CARRIER` when the latter is absent. Codes are stripped and
+upper-cased. `FL_DATE` accepts ISO dates and the TranStats CSV format
+(`5/15/2025 12:00:00 AM`); times accept `900` or `"0900"`.
+
+### Error policy
+
+| Situation | Result |
+| --- | --- |
+| Required field missing, null, empty, wrong type or out of range | Record rejected; the error names the instance index and the field |
+| Optional field missing | Null |
+| Optional field of the wrong type (e.g. `"DISTANCE": "far"`) | Record rejected |
+| Optional field out of range (e.g. `DAY_OF_WEEK: 9`) | Null and a warning in the log |
+| Unknown or post-departure field | Ignored and never passed on |
+| Unseen category (new airline or airport) | Accepted; encoders handle it (Issue 1.4) |
+
+A wrong type means the client sends malformed data and should be told. An
+out-of-range optional value only loses that value, so it should not discard
+the whole batch. The HTTP status code for rejected requests is decided in
+Issue 2.3 (FastAPI currently returns 422).
+
+At ingestion the same value rules apply, but a violation fails the month
+(`error`) or is logged and kept (`warn`, used for negative
+`CRS_ELAPSED_TIME`). Rules without an ingestion policy (e.g. `MONTH` in
+1-12) are checked on requests only: raw data is preserved and filtering
+belongs to preprocessing. Against the 2022/2023 data, the only values that violate any
+rule are the six known negative scheduled durations.
+
+### Leakage
+
+Each column is marked as known or not known before the scheduled departure.
+`POST_DEPARTURE_PATTERNS` lists the post-departure columns, including
+TranStats fields that are not ingested (`WHEELS_OFF`, `*_DELAY`, `DIV_*`,
+...), and is the source for the leakage checks in Issue #3. `TAIL_NUM` is
+treated as post-departure because the recorded tail is the aircraft that
+actually flew, and aircraft swaps happen up to departure. `CANCELLED` and
+`DIVERTED` are outcomes, used only to filter flights.

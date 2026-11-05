@@ -28,7 +28,15 @@ ingestion:
   max_download_bytes: 1073741824
   min_free_disk_bytes: 536870912
 
-  allowed_feature_columns:
+# Issue #3 (1.3): python -m src.data.make_dataset (raw -> filtered -> features).
+# Leakage patterns are not configured here: they come from the data contract
+# (src/data/contract.py, POST_DEPARTURE_PATTERNS).
+preprocessing:
+  output_path: "data/processed/dataset.parquet"
+  manifest_path: "data/processed/dataset_manifest.json"
+  # Only these columns reach the feature step. Each one must be a
+  # pre-departure column of the data contract (checked at load time).
+  feature_allowlist:
     - "FL_DATE"
     - "MONTH"
     - "DAY_OF_WEEK"
@@ -42,47 +50,6 @@ ingestion:
     - "CRS_ELAPSED_TIME"
     - "DISTANCE"
     - "DISTANCE_GROUP"
-
-  categorical_columns:
-    - "OP_UNIQUE_CARRIER"
-    - "ORIGIN"
-    - "DEST"
-    - "DEP_TIME_BLK"
-    - "ARR_TIME_BLK"
-
-  numeric_columns:
-    - "MONTH"
-    - "DAY_OF_WEEK"
-    - "CRS_DEP_TIME"
-    - "CRS_ARR_TIME"
-    - "CRS_ELAPSED_TIME"
-    - "DISTANCE"
-    - "DISTANCE_GROUP"
-
-leakage:
-  forbidden_patterns:
-    - "^DEP_TIME$"
-    - "^DEP_DELAY.*"
-    - "^DEP_DEL15$"
-    - "^TAXI_OUT$"
-    - "^WHEELS_OFF$"
-    - "^WHEELS_ON$"
-    - "^TAXI_IN$"
-    - "^ARR_TIME$"
-    - "^ARR_DELAY.*"
-    - "^ARR_DEL15$"
-    - "^ACTUAL_ELAPSED_TIME$"
-    - "^AIR_TIME$"
-    - "^CARRIER_DELAY$"
-    - "^WEATHER_DELAY$"
-    - "^NAS_DELAY$"
-    - "^SECURITY_DELAY$"
-    - "^LATE_AIRCRAFT_DELAY$"
-    - "^CANCELLATION_CODE$"
-    - "^DIV_.*"
-    - "^FIRST_DEP_TIME$"
-    - "^TOTAL_ADD_GTIME$"
-    - "^LONGEST_ADD_GTIME$"
 
 mlflow:
   tracking_uri: "http://localhost:5000"

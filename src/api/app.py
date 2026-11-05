@@ -2,6 +2,8 @@ import logging
 from typing import List
 from fastapi import FastAPI, HTTPException, status
 from src.api.schemas import PredictionRequest, PredictionResponse, DelaySeverityCategory
+from src.data.contract import records_to_frame
+from src.data.preprocessor import build_features
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("flight-delay-api")
@@ -40,9 +42,11 @@ def classify_flights(payload: PredictionRequest) -> PredictionResponse:
     predictions: List[DelaySeverityCategory] = []
 
     try:
+        # Same feature function as training (src.data.make_dataset): no train/serve skew.
+        features = build_features(records_to_frame(payload.instances))
         # TODO: Load trained model artifacts and execute pipeline inference
         # In this baseline skeleton, we provide a placeholder default prediction
-        for _ in payload.instances:
+        for _ in range(len(features)):
             predictions.append("on_time")
 
         return PredictionResponse(classifications=predictions)
@@ -52,4 +56,3 @@ def classify_flights(payload: PredictionRequest) -> PredictionResponse:
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Inference failed: {str(e)}",
         )
-

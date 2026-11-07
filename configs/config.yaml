@@ -55,8 +55,22 @@ mlflow:
   tracking_uri: "http://localhost:5000"
   experiment_name: "flight-delay-severity-prediction"
 
+
+model:
+  type: "random_forest"
+  random_state: 42
+  test_size: 0.2
+
+training:
+  output_dir: "src/models"
+  metrics_path: "src/metrics.json"
+
 api:
   host: "0.0.0.0"
   port: 8000
   endpoint: "/classify"
 
+serving:
+  model_uri: "outputs/models/model.pkl"
+  host: "0.0.0.0"
+  port: 8000

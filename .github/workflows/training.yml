@@ -1,0 +1,53 @@
+name: Training
+
+on:
+  workflow_dispatch:
+    inputs:
+      config_path:
+        description: "Path to the training config file"
+        required: true
+        default: "configs/config.yaml"
+      experiment_name:
+        description: "MLflow experiment name"
+        required: true
+        default: "baseline-training"
+      run_name:
+        description: "Optional MLflow run name"
+        required: false
+        default: "manual-training-run"
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  train-model:
+    name: Manual model training
+    runs-on: self-hosted
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Print runner information
+        run: |
+          echo "Running on self-hosted runner"
+          uname -a || true
+
+      - name: Build training image
+        run: |
+          docker build \
+            -f Dockerfile.training \
+            -t project-training:${{ github.sha }} \
+            .
+
+      - name: Run training container
+        run: |
+          docker run --rm \
+            -e MLFLOW_TRACKING_URI="${{ secrets.MLFLOW_TRACKING_URI }}" \
+            -e MLFLOW_EXPERIMENT_NAME="${{ github.event.inputs.experiment_name }}" \
+            -e MLFLOW_RUN_NAME="${{ github.event.inputs.run_name }}" \
+            -v "${{ github.workspace }}/outputs:/app/outputs" \
+            project-training:${{ github.sha }} \
+            python -m src.train \
+              --config "${{ github.event.inputs.config_path }}"

@@ -71,6 +71,6 @@ api:
   endpoint: "/classify"
 
 serving:
-  model_uri: "outputs/models/model.pkl"
+  model_uri: "models/model.pkl"
   host: "0.0.0.0"
   port: 8000

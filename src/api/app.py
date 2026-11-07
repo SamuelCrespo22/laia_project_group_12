@@ -1,7 +1,9 @@
 import logging
 from typing import List
+
 from fastapi import FastAPI, HTTPException, status
-from src.api.schemas import PredictionRequest, PredictionResponse, DelaySeverityCategory
+
+from src.api.schemas import DelaySeverityCategory, PredictionRequest, PredictionResponse
 from src.data.contract import records_to_frame
 from src.data.preprocessor import build_features
 

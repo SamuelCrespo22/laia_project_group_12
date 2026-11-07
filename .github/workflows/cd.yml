@@ -2,9 +2,8 @@ name: CD pipeline
 
 on:
   push:
-    branches: [ "main", "master", "develop" ]
-  pull_request:
-    branches: [ "main", "master", "develop" ]
+    branches:
+      - main
 
 permissions:
   contents: read

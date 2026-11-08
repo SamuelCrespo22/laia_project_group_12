@@ -7,6 +7,11 @@ ENV PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
+# LightGBM needs the OpenMP runtime, which python:3.12-slim does not include
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libgomp1 \
+    && rm -rf /var/lib/apt/lists/*
+
 # Install only the serving dependencies
 COPY docker/requirements-serving.txt /app/requirements-serving.txt
 

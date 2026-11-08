@@ -70,7 +70,8 @@ To simulate real-world production environments, the system leverages GitHub for 
 laia_project_group_12/
 ├── .github/
 │   └── workflows/
-│       └── ci.yml               # CI: flake8 + pytest on pushes and pull requests
+│       ├── ci.yml               # CI: flake8 + pytest on pushes and pull requests
+│       └── docker-ci.yml        # Builds both images and tests the Compose stack
 ├── configs/
 │   └── config.yaml              # Project parameters (target, ingestion, preprocessing, MLflow, API)
 ├── data/
@@ -78,11 +79,15 @@ laia_project_group_12/
 │   ├── interim/                 # Intermediate datasets (git-ignored)
 │   └── processed/               # Model-ready datasets and splits (git-ignored)
 ├── docker/
-│   ├── Dockerfile               # Container definition for the FastAPI inference service
-│   └── docker-compose.yml       # Local stack (API, MLflow, Prometheus, Grafana)
+│   ├── Dockerfile               # Serving image (FastAPI inference service)
+│   ├── Dockerfile.train         # Training image (logs runs to MLflow)
+│   ├── requirements-serving.txt # Runtime dependencies of the serving image
+│   ├── requirements-training.txt # Dependencies of the training image
+│   └── docker-compose.yml       # Local stack (API, MLflow, optional training profile)
 ├── docs/
 │   ├── architecture.md          # Architecture documentation
 │   ├── data_decisions.md        # Data decisions and their justifications
+│   ├── docker_packaging.md      # Docker images, Compose stack and validation
 │   └── milestones_and_issues.md # Milestones and GitHub issues roadmap
 ├── models/                      # Local model artifacts (git-ignored)
 ├── scripts/
@@ -212,10 +217,11 @@ Interactive API documentation will be available at:
 - **Health Check:** [http://localhost:8000/health](http://localhost:8000/health)
 
 ### 6.6. Run the Full Stack with Docker Compose
-To launch the complete local stack (API container, MLflow server, Prometheus, and Grafana):
+To launch the local stack (API container and MLflow server):
 ```bash
 docker compose -f docker/docker-compose.yml up --build
 ```
+Prometheus and Grafana are not part of this stack yet. They return in Issue 4.1 (Milestone 4).
 
 ---
 
@@ -232,9 +238,10 @@ docker compose -f docker/docker-compose.yml up --build
 - GitHub Actions (`.github/workflows/ci.yml`) runs on pushes and pull requests to `main`, `master` and `develop`:
   - `flake8` fails the build on syntax errors and undefined names (`E9,F63,F7,F82`); other style issues are reported as warnings only (`--exit-zero`).
   - `pytest tests/` runs the unit tests (ingestion, data contract, preprocessing and API) on synthetic fixtures.
-- Building the Docker image and deployment are not automated yet (Issue 2.5).
+- GitHub Actions (`.github/workflows/docker-ci.yml`) builds both images and tests the Compose stack when Docker files, `src/` or `configs/` change.
+- Publishing images and deployment are not automated yet (Issue 2.5).
 
-### 7.3. Monitoring & Drift Detection
+### 7.3. Monitoring & Drift Detection (planned, Milestone 4)
 - Real-time prediction latency, throughput, and error rates exported to Prometheus.
 - Delayed-label performance tracking: When evaluation ground-truth becomes available in sequential rounds, performance drift and statistical data drift (using Evidently / SciPy Kolmogorov-Smirnov & Chi-Square tests) are computed.
 - Subgroup performance monitoring isolates performance dips targeting specific airlines or airports.

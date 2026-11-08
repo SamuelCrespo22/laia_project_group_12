@@ -52,13 +52,10 @@ mlartifacts/
 # Data files (keep raw & processed data local/in DVC, not in git)
 #data/raw/*
 #!data/raw/.gitkeep
-
-# Generated temporal splits and exploratory reports
-/data/processed/*
-!/data/processed/.gitkeep
-
-#data/interim/*
-#!data/interim/.gitkeep
+data/processed/*
+!data/processed/.gitkeep
+data/interim/*
+!data/interim/.gitkeep
 
 # Models & Artifacts
 models/*

@@ -50,6 +50,29 @@ ingestion:
   max_download_bytes: 1073741824
   min_free_disk_bytes: 536870912
 
+# Issue #3 (1.3): python -m src.data.make_dataset (raw -> filtered -> features).
+# Leakage patterns are not configured here: they come from the data contract
+# (src/data/contract.py, POST_DEPARTURE_PATTERNS).
+preprocessing:
+  output_path: "data/processed/dataset.parquet"
+  manifest_path: "data/processed/dataset_manifest.json"
+  # Only these columns reach the feature step. Each one must be a
+  # pre-departure column of the data contract (checked at load time).
+  feature_allowlist:
+    - "FL_DATE"
+    - "MONTH"
+    - "DAY_OF_WEEK"
+    - "OP_UNIQUE_CARRIER"
+    - "ORIGIN"
+    - "DEST"
+    - "CRS_DEP_TIME"
+    - "DEP_TIME_BLK"
+    - "CRS_ARR_TIME"
+    - "ARR_TIME_BLK"
+    - "CRS_ELAPSED_TIME"
+    - "DISTANCE"
+    - "DISTANCE_GROUP"
+
 mlflow:
   tracking_uri: "http://localhost:5000"
   experiment_name: "flight-delay-severity-prediction"

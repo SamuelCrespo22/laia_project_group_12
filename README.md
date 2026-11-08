@@ -1,6 +1,6 @@
 # End-to-End MLOps Pipeline for Flight Delay Severity Prediction
 
-**Advanced Artificial Intelligence Laboratory (LAIA) — Academic Year 2026/2027**  
+**Advanced Artificial Intelligence Laboratory (LAIA) - 2026/2027**  
 *Department of Informatics Engineering (DEI) — University of Coimbra*  
 **Team:** Group 12
 
@@ -70,49 +70,41 @@ To simulate real-world production environments, the system leverages GitHub for 
 laia_project_group_12/
 ├── .github/
 │   └── workflows/
-│       └── ci.yml               # CI pipeline for automated testing and linting
+│       └── ci.yml               # CI: flake8 + pytest on pushes and pull requests
 ├── configs/
-│   └── config.yaml              # Global project configurations, targets, and parameters
+│   └── config.yaml              # Project parameters (target, ingestion, preprocessing, MLflow, API)
 ├── data/
-│   ├── raw/                     # Raw BTS flight datasets (tracked by DVC, ignored by git)
-│   ├── interim/                 # Intermediate preprocessed datasets
-│   └── processed/               # Final feature matrices ready for model training
+│   ├── raw/                     # Monthly BTS Parquet files (Git LFS) + manifest.json
+│   ├── interim/                 # Intermediate datasets (git-ignored)
+│   └── processed/               # Model-ready datasets and splits (git-ignored)
 ├── docker/
-│   ├── Dockerfile               # Production container definition for FastAPI inference
-│   └── docker-compose.yml       # Local orchestration stack (API, MLflow, Prometheus, Grafana)
+│   ├── Dockerfile               # Container definition for the FastAPI inference service
+│   └── docker-compose.yml       # Local stack (API, MLflow, Prometheus, Grafana)
 ├── docs/
-│   └── architecture.md          # Technical documentation and architecture decision records (ADRs)
-├── models/                      # Serialized model artifacts and local checkpoints
-├── notebooks/                   # Jupyter notebooks for EDA and rapid experimentation
-├── scripts/                     # Helper automation and maintenance scripts
+│   ├── architecture.md          # Architecture documentation
+│   ├── data_decisions.md        # Data decisions and their justifications
+│   └── milestones_and_issues.md # Milestones and GitHub issues roadmap
+├── models/                      # Local model artifacts (git-ignored)
+├── scripts/
+│   └── ingest_bts.py            # Incremental BTS download, validation and Parquet storage
 ├── src/
-│   ├── api/                     # Inference service package
-│   │   ├── __init__.py
-│   │   ├── app.py               # FastAPI application (/health and /classify endpoints)
+│   ├── api/                     # Inference service
+│   │   ├── app.py               # FastAPI application (/health and /classify)
 │   │   └── schemas.py           # Pydantic request and response schemas
-│   ├── data/                    # Data ingestion and reproducible preprocessing logic
-│   │   ├── __init__.py
-│   │   └── preprocessor.py
-│   ├── features/                # Feature engineering, transformers, and encodings
-│   │   ├── __init__.py
-│   │   └── engineer.py
-│   ├── models/                  # Training routines, evaluation metrics, and MLflow logging
-│   │   ├── __init__.py
-│   │   ├── train.py
-│   │   └── evaluate.py
-│   ├── monitoring/              # Data drift detection and subgroup metric tracking
-│   │   ├── __init__.py
-│   │   └── drift_detector.py
-│   └── utils/                   # Shared logging, YAML loaders, and helper utilities
-│       ├── __init__.py
-│       └── config.py
-├── tests/                       # Automated test suite (pytest)
-│   ├── __init__.py
-│   └── test_api.py              # Unit and integration tests for the inference service
-├── .gitignore                   # Git ignore specifications (venv, data, caches, artifacts)
-├── essay.pdf                    # Official project specification document
-├── README.md                    # Project documentation
-└── requirements.txt             # Pinned project dependencies
+│   ├── data/
+│   │   ├── contract.py          # Data contract: columns, types and value rules
+│   │   ├── preprocessor.py      # Leakage-safe filtering, target and features (train + serve)
+│   │   └── make_dataset.py      # raw -> filtered -> features: python -m src.data.make_dataset
+│   ├── features/                # Feature encoders (planned, Issue 1.4)
+│   ├── models/                  # Training and evaluation (planned, Issue 2.1)
+│   ├── monitoring/              # Drift and subgroup monitoring (planned, Milestone 4)
+│   └── utils/                   # Shared helpers
+├── tests/                       # pytest suite (synthetic fixtures, no real data needed)
+├── .gitattributes               # Git LFS tracking rules for data/raw/*.parquet
+├── .gitignore
+├── essay.pdf                    # Official project specification
+├── README.md
+└── requirements.txt             # Project dependencies
 ```
 
 ---
@@ -131,7 +123,7 @@ Accepts a JSON payload containing an `instances` array of flight records with ra
   "instances": [
     {
       "FL_DATE": "2025-05-15",
-      "OP_CARRIER": "AA",
+      "OP_UNIQUE_CARRIER": "AA",
       "ORIGIN": "JFK",
       "DEST": "LAX",
       "CRS_DEP_TIME": 900,
@@ -141,7 +133,7 @@ Accepts a JSON payload containing an `instances` array of flight records with ra
     },
     {
       "FL_DATE": "2025-05-16",
-      "OP_CARRIER": "DL",
+      "OP_UNIQUE_CARRIER": "DL",
       "ORIGIN": "ATL",
       "DEST": "ORD",
       "CRS_DEP_TIME": 1400,
@@ -205,6 +197,10 @@ Execute automated unit tests using `pytest`:
 pytest tests/ -v
 ```
 
+To build the model dataset from the raw files (after `git lfs pull`), run
+`python -m src.data.make_dataset`. It writes `data/processed/dataset.parquet`
+and a manifest; re-runs produce identical files.
+
 ### 6.5. Launch the Local Development Server
 Start the FastAPI server with hot-reloading:
 ```bash
@@ -233,10 +229,10 @@ docker compose -f docker/docker-compose.yml up --build
 - Candidate models are registered in the MLflow Model Registry and transitioned from `None` -> `Staging` -> `Production`.
 
 ### 7.2. Continuous Integration & Continuous Deployment (CI/CD)
-- GitHub Actions triggers on every Pull Request to `main`:
-  - Enforces code style via `flake8`, `black`, and `isort`.
-  - Runs unit tests covering data preprocessing, model inference, and API request validation.
-  - Builds the Docker container to ensure deployment integrity.
+- GitHub Actions (`.github/workflows/ci.yml`) runs on pushes and pull requests to `main`, `master` and `develop`:
+  - `flake8` fails the build on syntax errors and undefined names (`E9,F63,F7,F82`); other style issues are reported as warnings only (`--exit-zero`).
+  - `pytest tests/` runs the unit tests (ingestion, data contract, preprocessing and API) on synthetic fixtures.
+- Building the Docker image and deployment are not automated yet (Issue 2.5).
 
 ### 7.3. Monitoring & Drift Detection
 - Real-time prediction latency, throughput, and error rates exported to Prometheus.

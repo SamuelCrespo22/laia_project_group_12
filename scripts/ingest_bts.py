@@ -22,7 +22,7 @@ BASE_URL = 'https://transtats.bts.gov/PREZIP/'
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from src.data.contract import (COLUMN_MAP, EXPECTED, INTEGER_COLUMNS,
-                               FLOAT_COLUMNS, validate_values)
+                               FLOAT_COLUMNS, RAW_VALUE_CHECK_COLUMNS, validate_values)
 
 
 def sha256(path: Path) -> str:
@@ -108,8 +108,7 @@ def validate_parquet(path: Path, year: int, month: int, expected_count: int | No
             raise ValueError('Empty monthly dataset')
         if expected_count is not None and parquet.metadata.num_rows != expected_count:
             raise ValueError('Mismatch between processed and stored row counts')
-        for batch in parquet.iter_batches(batch_size=100_000, columns=['YEAR', 'MONTH', 'DAY_OF_MONTH', 'FL_DATE', 'CANCELLED', 'DIVERTED',
-                                                           'DISTANCE', 'CRS_ELAPSED_TIME', 'CRS_DEP_TIME', 'CRS_ARR_TIME']):
+        for batch in parquet.iter_batches(batch_size=100_000, columns=RAW_VALUE_CHECK_COLUMNS):
             frame = batch.to_pandas()
             if not ((frame['YEAR'] == year) & (frame['MONTH'] == month)).all():
                 raise ValueError('Wrong year/month values in output')

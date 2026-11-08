@@ -225,17 +225,17 @@ def build_splits(config_path="configs/config.yaml"):
 
         manifest = {
             "run_id": run_id,
-            "run_dir": str(final_run_dir),
+            "run_dir": final_run_dir.as_posix(),
             "total_rows": total_written,
             "splits": {
                 name: {
-                    "path": str(final_run_dir / f"{name}.parquet"),
+                    "path": (final_run_dir / f"{name}.parquet").as_posix(),
                     "rows": counts[name],
                 }
                 for name in SPLIT_NAMES
             },
             "class_distribution": str(
-                final_run_dir / "class_distribution.json"
+                (final_run_dir / "class_distribution.json").as_posix()
             ),
         }
 

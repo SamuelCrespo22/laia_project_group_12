@@ -77,16 +77,6 @@ mlflow:
   tracking_uri: "http://localhost:5000"
   experiment_name: "flight-delay-severity-prediction"
 
-
-model:
-  type: "random_forest"
-  random_state: 42
-  test_size: 0.2
-
-training:
-  output_dir: "src/models"
-  metrics_path: "src/metrics.json"
-
 api:
   host: "0.0.0.0"
   port: 8000
@@ -96,3 +86,52 @@ serving:
   model_uri: "models/model.pkl"
   host: "0.0.0.0"
   port: 8000
+
+eda:
+  arrival_delay_thresholds_minutes:
+    moderate: 15
+    severe: 60
+  analysis_years: [2022, 2023]
+
+  train_start: "2022-01-01"
+  train_end_exclusive: "2023-01-01"
+
+  comparison_start: "2023-01-01"
+  comparison_end_exclusive: "2024-01-01"
+
+  thresholds:
+    moderate_delay_min: 15
+    severe_delay_min: 60
+
+  categorical_features:
+    - OP_UNIQUE_CARRIER
+    - ORIGIN
+    - DEST
+
+  numeric_features:
+    - DISTANCE
+    - CRS_ELAPSED_TIME
+    - CRS_DEP_TIME
+
+  reference_features:
+    - FL_DATE
+    - MONTH
+    - DAY_OF_WEEK
+    - OP_UNIQUE_CARRIER
+    - ORIGIN
+    - DEST
+    - CRS_DEP_TIME
+    - CRS_ARR_TIME
+    - CRS_ELAPSED_TIME
+    - DISTANCE
+    - DISTANCE_GROUP
+
+  rarity:
+    min_count: 100
+    min_share: 0.001
+
+  reference_output: data/reference/train_feature_statistics.json
+  plots_top_n: 12
+
+  distance_bin_edges: [0, 250, 500, 750, 1000, 1500, 2000, 3000, 5000, 10000]
+  elapsed_bin_edges: [0, 60, 120, 180, 240, 360, 480, 720, 1440]

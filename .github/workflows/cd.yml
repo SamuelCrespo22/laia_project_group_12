@@ -38,13 +38,19 @@ jobs:
           docker build \
             -f Dockerfile.serving \
             -t ${{ env.REGISTRY }}/${{ env.LOWERCASE_IMAGE_NAME }}:${{ github.sha }} \
+            -t ${{ env.REGISTRY }}/${{ env.LOWERCASE_IMAGE_NAME }}:latest \
             .
 
-      - name: Push serving Docker image
+      - name: Push serving Docker image with commit SHA tag
         run: |
           docker push ${{ env.REGISTRY }}/${{ env.LOWERCASE_IMAGE_NAME }}:${{ github.sha }}
 
-      - name: Print pushed image reference
+      - name: Push serving Docker image with latest tag
         run: |
-          echo "Pushed image:"
+          docker push ${{ env.REGISTRY }}/${{ env.LOWERCASE_IMAGE_NAME }}:latest
+
+      - name: Print pushed image references
+        run: |
+          echo "Pushed images:"
           echo "${{ env.REGISTRY }}/${{ env.LOWERCASE_IMAGE_NAME }}:${{ github.sha }}"
+          echo "${{ env.REGISTRY }}/${{ env.LOWERCASE_IMAGE_NAME }}:latest"

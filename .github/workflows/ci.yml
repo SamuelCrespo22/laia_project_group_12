@@ -6,12 +6,18 @@ on:
   pull_request:
     branches: [ "main", "master", "develop" ]
 
+permissions:
+  contents: write
+
 jobs:
   lint-and-test:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -24,6 +30,28 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      - name: Format imports with isort
+        run: |
+          isort src tests
+
+      - name: Format with black
+        run: |
+          black src tests
+
+      - name: Commit formatting changes
+        if: github.event_name == 'push'
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "Format code with black and isort"
+
+      - name: Run isort check
+        run: |
+          isort --check-only src tests
+
+      - name: Run black check
+        run: |
+          black --check src tests
+
       - name: Lint with flake8
         run: |
           # stop the build if there are Python syntax errors or undefined names
@@ -34,14 +62,6 @@ jobs:
       - name: Run automated tests
         run: |
           pytest tests/ -v
-
-      - name: Run black check
-        run: |
-          black --check src tests
-
-      - name: Run isort check
-        run: |
-          isort --check-only src tests
 
       - name: Run pytest with coverage
         run: |

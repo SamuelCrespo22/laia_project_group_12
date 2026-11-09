@@ -5,8 +5,8 @@ on:
   pull_request:
 
 jobs:
-  quality-tests-and-builds:
-    name: Quality checks, tests, and Docker builds
+  lint-and-test:
+    name: lint-and-test
     runs-on: ubuntu-latest
 
     steps:
@@ -47,4 +47,3 @@ jobs:
         with:
           name: coverage-report
           path: coverage.xml
-          

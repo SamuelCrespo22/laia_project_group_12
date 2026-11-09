@@ -356,3 +356,50 @@ The real-data execution additionally verified the expected
 
 The tests do not yet cover every possible interruption or
 filesystem failure.
+
+---
+
+# LAIA ÔÇö Data Understanding and Decisions (Issue 1.2)
+
+## Dataset and target population
+
+BTS TranStats, 2022ÔÇô2023: **13,577,024** reported flights. Arrival-delay analysis includes **13,275,415 (97.78%)** flights with `CANCELLED == 0`, `DIVERTED == 0` and observed `ARR_DELAY`. It excludes **269,229 (1.98%)** cancelled flights, **32,378 (0.24%)** diverted flights and **2** otherwise eligible records missing `ARR_DELAY`. Do not assign an arrival-delay class to excluded flights.
+
+## Target thresholds
+
+Configured class definitions: `on_time` (`ARR_DELAY < 15`), `moderate_delay` (`15 <= ARR_DELAY < 60`) and `severe_delay` (`ARR_DELAY >= 60`). Among eligible flights: **79.18%**, **13.89%** and **6.93%** (919,692 severe), respectively. These cutoffs are configurable in `configs/config.yaml`; **team approval and rationale remain required**. Retain all classes and report classwise proportions.
+
+## Missingness and quality
+
+`ARR_DELAY` is absent for 100% of cancelled and diverted flights and for only two flights outside those groups. `FIRST_DEP_TIME`, `TOTAL_ADD_GTIME` and `LONGEST_ADD_GTIME` are each over **99.37%** missing; these are specialised operational fields, not general flight measurements. `TAIL_NUM` is missing in **50,046 (0.37%)** of all reported records but not in eligible completed flights. The overall `ARR_DELAY` missing share is **2.93% (2022)** and **1.53% (2023)**, largely tracking operational statuses rather than proving a change in data quality. Inspect flagged non-positive scheduled durations; do not delete them automatically.
+
+## Temporal and spatial observations
+
+The eligible-flight arrival-delay rate (at least 15 minutes) is **20.82%**. Scheduled departure time, weekday and month are associated with different delay rates and severity compositions. Retain scheduled calendar/time variables. `CRS_DEP_TIME` is an HHMM local time, not a continuous count of minutes; any derived hour/period representation must preserve local-time semantics. `DEP_TIME_BLK` was reconstructed from `CRS_DEP_TIME` because it is absent from the local Parquet schema.
+
+The dataset contains **17 airlines**, **373 airports**, and **7,163 directed routes**. No airport or airline code is first observed in 2023, but route composition changes between years. The rarity rule (`min_count=100` **or** `min_share=0.001`) flags many airport codes, including some with thousands of flights. Report absolute and relative rarity separately and base any category handling on the training period, not combined 2022ÔÇô2023 data. Preserve `OP_UNIQUE_CARRIER`, `ORIGIN`, and `DEST` separately while evaluating the handling of unseen route pairs.
+
+## Differences between years
+
+Median `DISTANCE` changes from **666 to 679 miles**; median `CRS_ELAPSED_TIME` changes from **126 to 129 minutes**. The carrier mix changes, including `WN` increasing from **19.43% to 21.01%** of reported flights. These are evidence of distribution changes, not of predictive performance decline. A chronological comparison is preferable to a random year-mixed evaluation when assessing changes over time.
+
+## Arrival traffic
+
+The unadjusted delay rate is **20.26%** in destination airport-hour windows below **0.75├ù** usual scheduled arrival volume and **23.19%** in windows at least **1.5├ù** usual volume (difference **2.93 percentage points**). In the 06:00ÔÇô23:00 sensitivity subset, the rates are **20.13%** and **22.25%**. Consider scheduled arrival intensity and relative pressure as exploratory derived variables; do **not** infer congestion causality. The existing exploratory calculation uses `FL_DATE` as an approximate arrival date and a both-years reference denominator. Correct calendar/fusos and construct a time-valid, training-only reference before operational use.
+
+## Scheduled duration
+
+Across **6,388** comparable routeÔÇôcarrier combinations, the mean year-over-year change in observed duration buffer is **ÔêÆ0.05 minutes** (median **ÔêÆ0.14**). There is no evidence of an overall increase. Keep `CRS_ELAPSED_TIME` and `DISTANCE`. A route-relative scheduled-duration measure is an optional hypothesis, not an established improvement, and would need historical reference values computed without future information.
+
+## Configuration and references
+
+The current EDA configuration uses **2022** (`2022-01-01` inclusive to `2023-01-01` exclusive) as a **provisional** reference period and compares it with **2023**. Confirm the final training/validation/test cutoffs before reusing reference statistics downstream. The notebook's export reports `data/reference/train_feature_statistics.json` for **6,729,125** training-period records. Check that its feature inventory covers the distributions required for later monitoring; the configured `reference_features` list is broader than the numeric and categorical lists used by the current export.
+
+## Remaining steps to close Issue 1.2
+
+- [ ] Approve the three-class cutoffs, prediction-time definition and chronological split dates; synchronise `configs/config.yaml` and this document.
+- [ ] Investigate flagged quality anomalies and validate date handling for arrival traffic.
+- [ ] Confirm the notebook runs from beginning to end in the target environment and the reference JSON is written to the configured path.
+- [ ] Ensure the exported reference statistics cover the agreed feature set.
+- [ ] Add and run unit tests with small synthetic fixtures; confirm CI passes.
+- [ ] Commit `notebooks/01_eda_and_target_analysis.ipynb` and `docs/data_decisions.md` in a dedicated branch; open a PR referencing Issue 1.2, obtain teammate review, and merge.

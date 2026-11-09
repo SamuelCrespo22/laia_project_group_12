@@ -73,6 +73,26 @@ preprocessing:
     - "DISTANCE"
     - "DISTANCE_GROUP"
 
+# Issue #4 (1.4): encoders fitted on the training split. Every column listed
+# here must be in preprocessing.feature_allowlist (checked at load time).
+features:
+  # Fraction of the fitted rows, so it keeps its meaning under sampling.
+  # Categories rarer than this are grouped together.
+  min_frequency: 0.0001
+  # Encoded first: their positions in the output are 0..n-1.
+  categorical:
+    - "OP_UNIQUE_CARRIER"
+    - "ORIGIN"
+    - "DEST"
+    - "DEP_TIME_BLK"
+    - "ARR_TIME_BLK"
+  numeric:
+    - "CRS_ELAPSED_TIME"
+    - "DISTANCE"
+    - "MONTH"
+    - "DAY_OF_WEEK"
+    - "DISTANCE_GROUP"
+
 mlflow:
   tracking_uri: "http://localhost:5000"
   experiment_name: "flight-delay-severity-prediction"

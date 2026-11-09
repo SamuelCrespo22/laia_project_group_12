@@ -221,6 +221,72 @@ request policy of Issue #12. Allowlisted fields missing from a request are
 null and are handled by the encoders (Issue 1.4). Row order is never changed,
 so `/classify` returns predictions in input order.
 
+## Issue #4: feature encoders
+
+Encoders live in `src/features/encoders.py` and their parameters in the
+`features` block of `configs/config.yaml`. `build_feature_encoder` returns an
+unfitted transformer. It must be fitted on the training split only (2022-01 to
+2023-06), and is saved with the classifier as one pipeline, so serving applies
+the same encoding. Only standard scikit-learn classes are used, so the saved
+object does not depend on project code.
+
+| Model type | Categorical columns | Numeric columns |
+| :--- | :--- | :--- |
+| `linear` | One-hot, sparse | Median imputation, then scaling |
+| `tree` | Ordinal codes | Median imputation |
+
+Categorical columns come first in the output. For `tree` models they are
+positions `0..4`, which LightGBM receives through
+`fit(categorical_feature=...)`.
+
+Target encoding is not used: without cross-fitting it leaks the target into the
+training features, which is unjustified complexity for a baseline.
+
+### Columns
+
+Categorical: `OP_UNIQUE_CARRIER`, `ORIGIN`, `DEST`, `DEP_TIME_BLK`,
+`ARR_TIME_BLK`. Numeric: `CRS_ELAPSED_TIME`, `DISTANCE`, `MONTH`, `DAY_OF_WEEK`,
+`DISTANCE_GROUP`.
+
+Excluded: `FL_DATE`, because the model predicts years it never saw, and
+`CRS_DEP_TIME` and `CRS_ARR_TIME`, because the time blocks already carry that
+information and HHMM values are not linear in time.
+
+### Rare categories
+
+`min_frequency` is a fraction of the rows used for fitting, so it keeps its
+meaning when training uses a sample. The value is `0.0001`, about 981 flights on
+the full training split. Measured on that split:
+
+| Column | Categories | Grouped at `0.0001` | Flights affected | Grouped at `0.001` | Flights affected |
+| :--- | ---: | ---: | ---: | ---: | ---: |
+| `OP_UNIQUE_CARRIER` | 17 | 0 | 0% | 0 | 0% |
+| `ORIGIN` | 372 | 79 | 0.44% | 256 | 6.66% |
+| `DEST` | 373 | 80 | 0.44% | 256 | 6.57% |
+
+`0.001` is the share in the EDA rarity rule. It is not used as the default
+because it would merge 256 airports, including some with thousands of flights,
+and the EDA itself notes that the rule flags such airports. Issue #5 can compare
+both values on the validation split; `0.0001` has not yet been validated against
+model performance.
+
+### Unseen and missing values
+
+| Input | `linear` | `tree` |
+| :--- | :--- | :--- |
+| Rare category | Grouped column | Shared code for the rare group |
+| Unseen category or null, column has a rare group | Grouped column | Code `-1` |
+| Unseen category or null, column has no rare group | All zeros | Code `-1` |
+| Null number | Training median | Training median |
+
+No carrier or airport first appears in the validation or test periods, so
+unseen categories are a safeguard for the centralized evaluation data.
+
+On the full training split (9,811,971 flights), fitting took about 36 seconds
+(`linear`, 648 output columns) and 31 seconds (`tree`, 10 columns) on an 8 GB
+laptop, with a peak of 3.64 GB including the loaded data. The fitted encoder is
+16 KB when serialized.
+
 ## Issue 1.5: Temporal train, validation and test splits
 
 ### Objective

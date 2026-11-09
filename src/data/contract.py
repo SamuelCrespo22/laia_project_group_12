@@ -33,14 +33,8 @@ from datetime import date, datetime
 from typing import Annotated, Any, Literal, Optional, Sequence
 
 import pandas as pd
-from pydantic import (
-    BaseModel,
-    BeforeValidator,
-    ConfigDict,
-    Field,
-    create_model,
-    model_validator,
-)
+from pydantic import (BaseModel, BeforeValidator, ConfigDict, Field,
+                      create_model, model_validator)
 
 LOG = logging.getLogger("bts.contract")
 

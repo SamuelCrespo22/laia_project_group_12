@@ -24,7 +24,7 @@ jobs:
       - name: Build training image
         run: |
           docker build \
-            -f Dockerfile.training \
+            -f docker/Dockerfile.train \
             -t training:${{ github.sha }} \
             .
 

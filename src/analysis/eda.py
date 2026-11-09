@@ -36,8 +36,10 @@ def severity_label(value, moderate_min: float = 15, severe_min: float = 60):
 
 
 def polars_severity_expr(
-    column: str = "ARR_DELAY", moderate_min: float = 15,
-    severe_min: float = 60, alias: str = TARGET_SEVERITY,
+    column: str = "ARR_DELAY",
+    moderate_min: float = 15,
+    severe_min: float = 60,
+    alias: str = TARGET_SEVERITY,
 ):
     """Vectorised version of severity_label for Polars DataFrame/LazyFrame."""
     if moderate_min >= severe_min:
@@ -46,17 +48,22 @@ def polars_severity_expr(
 
     v = pl.col(column)
     return (
-        pl.when(v.is_null() | (~v.is_finite())).then(pl.lit(None, dtype=pl.String))
-        .when(v < moderate_min).then(pl.lit(SEVERITY_CLASSES[0]))
-        .when(v < severe_min).then(pl.lit(SEVERITY_CLASSES[1]))
+        pl.when(v.is_null() | (~v.is_finite()))
+        .then(pl.lit(None, dtype=pl.String))
+        .when(v < moderate_min)
+        .then(pl.lit(SEVERITY_CLASSES[0]))
+        .when(v < severe_min)
+        .then(pl.lit(SEVERITY_CLASSES[1]))
         .otherwise(pl.lit(SEVERITY_CLASSES[2]))
         .alias(alias)
     )
 
 
 def categorical_comparison(
-    train_counts: Mapping[str, int], comparison_counts: Mapping[str, int],
-    min_count: int = 100, min_share: float = 0.001,
+    train_counts: Mapping[str, int],
+    comparison_counts: Mapping[str, int],
+    min_count: int = 100,
+    min_share: float = 0.001,
 ):
     """Compare categorical frequencies; return unseen and rare TRAIN categories.
 
@@ -75,27 +82,37 @@ def categorical_comparison(
     result = {
         "train_total": n_train,
         "comparison_total": n_comp,
-        "train_cardinality": sum(k != MISSING_CATEGORY for k, v in train_counts.items() if v > 0),
-        "comparison_cardinality": sum(k != MISSING_CATEGORY for k, v in comparison_counts.items() if v > 0),
+        "train_cardinality": sum(
+            k != MISSING_CATEGORY for k, v in train_counts.items() if v > 0
+        ),
+        "comparison_cardinality": sum(
+            k != MISSING_CATEGORY for k, v in comparison_counts.items() if v > 0
+        ),
         "new_in_comparison": sorted(
-            k for k, v in comparison_counts.items()
+            k
+            for k, v in comparison_counts.items()
             if k != MISSING_CATEGORY and v > 0 and train_counts.get(k, 0) == 0
         ),
         "rare_in_train": sorted(
-            k for k, v in train_counts.items()
-            if k != MISSING_CATEGORY and v > 0
+            k
+            for k, v in train_counts.items()
+            if k != MISSING_CATEGORY
+            and v > 0
             and (v < min_count or (v / n_train) < min_share)
         ),
-        "total_variation_distance": 0.5 * sum(
+        "total_variation_distance": 0.5
+        * sum(
             abs(train_counts.get(k, 0) / n_train - comparison_counts.get(k, 0) / n_comp)
             for k in cats
         ),
         "frequency_rows": [
-            {"category": k,
-             "train_count": train_counts.get(k, 0),
-             "comparison_count": comparison_counts.get(k, 0),
-             "train_share": train_counts.get(k, 0) / n_train,
-             "comparison_share": comparison_counts.get(k, 0) / n_comp}
+            {
+                "category": k,
+                "train_count": train_counts.get(k, 0),
+                "comparison_count": comparison_counts.get(k, 0),
+                "train_share": train_counts.get(k, 0) / n_train,
+                "comparison_share": comparison_counts.get(k, 0) / n_comp,
+            }
             for k in cats
         ],
     }
@@ -130,8 +147,12 @@ def build_reference_statistics(
     return {
         "metadata": metadata,
         "n_flights": int(population_count),
-        "categorical": {k: distribution(v) for k, v in sorted(categorical_counts.items())},
-        "numeric_histograms": {k: distribution(v) for k, v in sorted(numeric_bin_counts.items())},
+        "categorical": {
+            k: distribution(v) for k, v in sorted(categorical_counts.items())
+        },
+        "numeric_histograms": {
+            k: distribution(v) for k, v in sorted(numeric_bin_counts.items())
+        },
         "numeric_summary": dict(sorted(numeric_summary.items())),
         "missingness": {
             k: {"count": int(v), "share": v / population_count}
@@ -144,7 +165,10 @@ def write_json_deterministic(path: str | Path, data: dict) -> None:
     """Write stable UTF-8 JSON (no execution-time timestamp)."""
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    contents = json.dumps(data, indent=2, ensure_ascii=False, sort_keys=True, allow_nan=False) + "\n"
+    contents = (
+        json.dumps(data, indent=2, ensure_ascii=False, sort_keys=True, allow_nan=False)
+        + "\n"
+    )
     tmp_path = path.with_name(path.name + ".tmp")
     tmp_path.write_text(contents, encoding="utf-8")
     tmp_path.replace(path)

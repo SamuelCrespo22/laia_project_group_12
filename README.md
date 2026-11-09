@@ -100,7 +100,7 @@ laia_project_group_12/
 │   │   ├── contract.py          # Data contract: columns, types and value rules
 │   │   ├── preprocessor.py      # Leakage-safe filtering, target and features (train + serve)
 │   │   └── make_dataset.py      # raw -> filtered -> features: python -m src.data.make_dataset
-│   ├── features/                # Feature encoders (planned, Issue 1.4)
+│   ├── features/                # Encoders for rare, unseen and missing values
 │   ├── models/                  # Training and evaluation (planned, Issue 2.1)
 │   ├── monitoring/              # Drift and subgroup monitoring (planned, Milestone 4)
 │   └── utils/                   # Shared helpers

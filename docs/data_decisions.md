@@ -166,5 +166,4 @@ either value.
 - The notebook's export cell writes a different format and includes cancelled
   flights, so re-running it would replace the current reference file.
 - The reference file covers fewer columns than `eda.reference_features`.
-- `polars` is required by the notebook but missing from `requirements.txt`.
 - The `0.0001` threshold has not been compared with `0.001` on model performance.

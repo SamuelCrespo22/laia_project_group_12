@@ -1,0 +1,36 @@
+name: Manual Training
+
+on:
+  workflow_dispatch:
+    inputs:
+      experiment_name:
+        description: "Name of the training experiment"
+        required: false
+        default: "manual-training"
+      data_path:
+        description: "Optional data path or URI"
+        required: false
+        default: ""
+
+jobs:
+  train:
+    name: Run training job
+    runs-on: [self-hosted, linux]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build training image
+        run: |
+          docker build \
+            -f docker/Dockerfile.train \
+            -t training:${{ github.sha }} \
+            .
+
+      - name: Run training container
+        run: |
+          docker run --rm \
+            -e EXPERIMENT_NAME="${{ github.event.inputs.experiment_name }}" \
+            -e DATA_PATH="${{ github.event.inputs.data_path }}" \
+            training:${{ github.sha }}

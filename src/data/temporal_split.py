@@ -1,14 +1,11 @@
-
 """Deterministic temporal train, validation and test splitting."""
 
 import json
-
 from datetime import date
 from pathlib import Path
 
 import pandas as pd
 import yaml
-
 
 SPLIT_NAMES = ("train", "validation", "test")
 
@@ -91,7 +88,6 @@ def temporal_split(df, split_config):
     return splits
 
 
-
 def load_published_splits(
     manifest_path="data/processed/temporal_split_manifest.json",
 ):
@@ -99,9 +95,7 @@ def load_published_splits(
     manifest_file = Path(manifest_path).resolve()
 
     if not manifest_file.is_file():
-        raise FileNotFoundError(
-            f"Temporal split manifest not found: {manifest_file}"
-        )
+        raise FileNotFoundError(f"Temporal split manifest not found: {manifest_file}")
 
     with manifest_file.open("r", encoding="utf-8") as file:
         manifest = json.load(file)
@@ -112,9 +106,7 @@ def load_published_splits(
         try:
             stored_path = Path(manifest["splits"][name]["path"])
         except (KeyError, TypeError) as exc:
-            raise ValueError(
-                f"Missing dataset path for split: {name}"
-            ) from exc
+            raise ValueError(f"Missing dataset path for split: {name}") from exc
 
         if stored_path.is_absolute():
             resolved_path = stored_path

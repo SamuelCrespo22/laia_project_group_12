@@ -1,13 +1,13 @@
-
 """Unit tests for deterministic temporal data splitting."""
+
+import json
 
 import pandas as pd
 import pytest
-import json
 
 from src.data.temporal_split import (
-    load_split_config,
     load_published_splits,
+    load_split_config,
     temporal_split,
 )
 
@@ -35,17 +35,19 @@ def split_config():
 @pytest.fixture
 def sample_flights():
     """Small synthetic dataset with dates at split boundaries."""
-    return pd.DataFrame({
-        "FL_DATE": [
-            "2022-01-01",
-            "2023-06-30",
-            "2023-07-01",
-            "2023-09-30",
-            "2023-10-01",
-            "2023-12-31",
-        ],
-        "ARR_DELAY": [0, 10, 20, 30, 60, 90],
-    })
+    return pd.DataFrame(
+        {
+            "FL_DATE": [
+                "2022-01-01",
+                "2023-06-30",
+                "2023-07-01",
+                "2023-09-30",
+                "2023-10-01",
+                "2023-12-31",
+            ],
+            "ARR_DELAY": [0, 10, 20, 30, 60, 90],
+        }
+    )
 
 
 def test_temporal_split_sizes(sample_flights, split_config):
@@ -109,10 +111,12 @@ def test_temporal_split_missing_date_column(split_config):
 
 def test_temporal_split_missing_date(split_config):
     """Reject records with missing flight dates."""
-    df = pd.DataFrame({
-        "FL_DATE": ["2023-01-01", None],
-        "ARR_DELAY": [0, 30],
-    })
+    df = pd.DataFrame(
+        {
+            "FL_DATE": ["2023-01-01", None],
+            "ARR_DELAY": [0, 30],
+        }
+    )
 
     with pytest.raises(ValueError, match="missing values"):
         temporal_split(df, split_config)
@@ -120,10 +124,12 @@ def test_temporal_split_missing_date(split_config):
 
 def test_temporal_split_outside_boundaries(split_config):
     """Reject records outside the configured date range."""
-    df = pd.DataFrame({
-        "FL_DATE": ["2021-12-31", "2023-01-01"],
-        "ARR_DELAY": [0, 30],
-    })
+    df = pd.DataFrame(
+        {
+            "FL_DATE": ["2021-12-31", "2023-01-01"],
+            "ARR_DELAY": [0, 30],
+        }
+    )
 
     with pytest.raises(ValueError, match="outside"):
         temporal_split(df, split_config)
@@ -181,7 +187,6 @@ temporal_split:
         load_split_config(config_file)
 
 
-
 def test_load_published_splits_valid(tmp_path):
     """Resolve all three published dataset paths."""
 
@@ -196,9 +201,7 @@ def test_load_published_splits_valid(tmp_path):
     manifest = {
         "splits": {
             name: {
-                "path": str(
-                    run_dir / f"{name}.parquet"
-                ),
+                "path": str(run_dir / f"{name}.parquet"),
                 "rows": 2,
             }
             for name in ("train", "validation", "test")
@@ -240,9 +243,7 @@ def test_load_published_splits_missing_dataset(tmp_path):
     manifest = {
         "splits": {
             name: {
-                "path": str(
-                    processed_dir / f"{name}.parquet"
-                ),
+                "path": str(processed_dir / f"{name}.parquet"),
                 "rows": 2,
             }
             for name in ("train", "validation", "test")

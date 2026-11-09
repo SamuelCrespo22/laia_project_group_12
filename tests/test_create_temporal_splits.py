@@ -1,4 +1,3 @@
-
 """Integration tests for temporal Parquet dataset generation."""
 
 import json
@@ -20,31 +19,25 @@ def synthetic_environment(tmp_path):
     raw_dir.mkdir()
     processed_dir.mkdir()
 
-    flights = pd.DataFrame({
-        "FL_DATE": pd.to_datetime([
-            "2022-01-01",
-            "2023-06-30",
-            "2023-07-01",
-            "2023-09-30",
-            "2023-10-01",
-            "2023-12-31",
-        ]),
-        "ARR_DELAY": [
-            0.0, 20.0, 70.0, 10.0, 45.0, 100.0
-        ],
-        "CANCELLED": [
-            0.0, 0.0, 0.0, 0.0, 1.0, 0.0
-        ],
-        "DIVERTED": [
-            0.0, 0.0, 0.0, 0.0, 0.0, 0.0
-        ],
-        "OP_UNIQUE_CARRIER": [
-            "AA", "AA", "DL", "DL", "UA", "UA"
-        ],
-        "ORIGIN": [
-            "JFK", "JFK", "ATL", "ATL", "ORD", "ORD"
-        ],
-    })
+    flights = pd.DataFrame(
+        {
+            "FL_DATE": pd.to_datetime(
+                [
+                    "2022-01-01",
+                    "2023-06-30",
+                    "2023-07-01",
+                    "2023-09-30",
+                    "2023-10-01",
+                    "2023-12-31",
+                ]
+            ),
+            "ARR_DELAY": [0.0, 20.0, 70.0, 10.0, 45.0, 100.0],
+            "CANCELLED": [0.0, 0.0, 0.0, 0.0, 1.0, 0.0],
+            "DIVERTED": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+            "OP_UNIQUE_CARRIER": ["AA", "AA", "DL", "DL", "UA", "UA"],
+            "ORIGIN": ["JFK", "JFK", "ATL", "ATL", "ORD", "ORD"],
+        }
+    )
 
     # Two files with identical schemas.
     flights.iloc[:3].to_parquet(
@@ -104,14 +97,10 @@ def test_create_temporal_splits(synthetic_environment):
 
     assert manifest_path.exists()
 
-    manifest = json.loads(
-        manifest_path.read_text(encoding="utf-8")
-    )
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
 
     train = pd.read_parquet(manifest["splits"]["train"]["path"])
-    validation = pd.read_parquet(
-        manifest["splits"]["validation"]["path"]
-    )
+    validation = pd.read_parquet(manifest["splits"]["validation"]["path"])
     test = pd.read_parquet(manifest["splits"]["test"]["path"])
 
     assert len(train) == 2
@@ -138,17 +127,14 @@ def test_create_temporal_splits(synthetic_environment):
 
     assert report["test"]["classes"]["severe_delay"]["count"] == 1
 
-    report_path = pd.io.common.stringify_path(
-        manifest["class_distribution"]
-    )
+    report_path = pd.io.common.stringify_path(manifest["class_distribution"])
     from pathlib import Path
+
     report_path = Path(report_path)
 
     assert report_path.exists()
 
-    saved_report = json.loads(
-        report_path.read_text(encoding="utf-8")
-    )
+    saved_report = json.loads(report_path.read_text(encoding="utf-8"))
 
     assert saved_report == report
 
@@ -163,15 +149,13 @@ def test_failed_run_preserves_previous_manifest(synthetic_environment):
 
     manifest_path = processed_dir / "temporal_split_manifest.json"
 
-    original_manifest = json.loads(
-        manifest_path.read_text(encoding="utf-8")
-    )
+    original_manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
 
     original_run_id = original_manifest["run_id"]
 
     # Corrupt one input Parquet file before the second execution.
     with config_path.open(encoding="utf-8") as file:
-        config = yaml.safe_load(file)
+        yaml.safe_load(file)
 
     raw_dir = config_path.parent / "raw"
     corrupted_file = raw_dir / "flights_part2.parquet"
@@ -183,9 +167,7 @@ def test_failed_run_preserves_previous_manifest(synthetic_environment):
         build_splits(config_path)
 
     # The active manifest must remain unchanged.
-    current_manifest = json.loads(
-        manifest_path.read_text(encoding="utf-8")
-    )
+    current_manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
 
     assert current_manifest["run_id"] == original_run_id
     assert current_manifest == original_manifest

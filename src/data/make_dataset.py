@@ -55,7 +55,11 @@ def input_columns(path: Path, config: PreprocessingConfig) -> list[str]:
     if missing:
         raise ValueError(f"{path.name} lacks columns needed for the target: {missing}")
     wanted = set(config.feature_allowlist) | set(LABEL_SOURCE_COLUMNS)
-    wanted |= {DERIVATION_SOURCES[c] for c in config.feature_allowlist if c in DERIVATION_SOURCES}
+    wanted |= {
+        DERIVATION_SOURCES[c]
+        for c in config.feature_allowlist
+        if c in DERIVATION_SOURCES
+    }
     return [c for c in available if c in wanted]
 
 
@@ -81,7 +85,9 @@ def sha256(path: Path) -> str:
 
 def _write_json(path: Path, payload: dict) -> None:
     tmp = path.with_name(path.name + ".tmp")
-    tmp.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    tmp.write_text(
+        json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
     os.replace(tmp, path)
 
 
@@ -110,7 +116,9 @@ def build_dataset(config_path: Optional[Path | str] = None) -> dict:
             classes.update(data[TARGET_COLUMN].value_counts().to_dict())
             rows_raw += len(raw)
             rows_out += len(data)
-            inputs.append({"file": path.name, "rows_raw": len(raw), "rows_out": len(data)})
+            inputs.append(
+                {"file": path.name, "rows_raw": len(raw), "rows_out": len(data)}
+            )
             LOG.info("%s: %d raw rows -> %d rows", path.name, len(raw), len(data))
     except BaseException:
         if writer is not None:
@@ -150,7 +158,9 @@ def main(argv: Optional[list[str]] = None) -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--config", default=None, help="path to config.yaml")
     args = parser.parse_args(argv)
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+    logging.basicConfig(
+        level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s"
+    )
     build_dataset(args.config)
 
 

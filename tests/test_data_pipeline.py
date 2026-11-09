@@ -10,7 +10,11 @@ from fastapi.testclient import TestClient
 
 import src.api.app as api_app
 from src.data import make_dataset
-from src.data.contract import FlightRecord, find_post_departure_columns, records_to_frame
+from src.data.contract import (
+    FlightRecord,
+    find_post_departure_columns,
+    records_to_frame,
+)
 from src.data.preprocessor import (
     DEFAULT_CONFIG_PATH,
     TARGET_COLUMN,
@@ -100,7 +104,11 @@ def raw_flights(n: int = 1, **overrides) -> pd.DataFrame:
     }
     frame = pd.DataFrame(
         {
-            k: ([overrides.get(k, v)] * n if not isinstance(overrides.get(k), list) else overrides[k])
+            k: (
+                [overrides.get(k, v)] * n
+                if not isinstance(overrides.get(k), list)
+                else overrides[k]
+            )
             for k, v in base.items()
         }
     )
@@ -335,8 +343,12 @@ def make_raw_dir(path: Path) -> None:
 def make_config(tmp_path: Path) -> Path:
     config = yaml.safe_load(DEFAULT_CONFIG_PATH.read_text())
     config["data"]["raw_dir"] = str(tmp_path / "raw")
-    config["preprocessing"]["output_path"] = str(tmp_path / "processed" / "dataset.parquet")
-    config["preprocessing"]["manifest_path"] = str(tmp_path / "processed" / "manifest.json")
+    config["preprocessing"]["output_path"] = str(
+        tmp_path / "processed" / "dataset.parquet"
+    )
+    config["preprocessing"]["manifest_path"] = str(
+        tmp_path / "processed" / "manifest.json"
+    )
     path = tmp_path / "config.yaml"
     path.write_text(yaml.safe_dump(config))
     return path

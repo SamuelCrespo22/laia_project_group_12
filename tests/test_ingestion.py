@@ -14,7 +14,11 @@ from scripts import ingest_bts as ingestion
 def source_zip(path, missing=None):
     values = {}
     for source, dest in ingestion.COLUMN_MAP.items():
-        values[source] = [1, 1, 1] if dest in ingestion.INTEGER_COLUMNS | ingestion.FLOAT_COLUMNS else ["AA"] * 3
+        values[source] = (
+            [1, 1, 1]
+            if dest in ingestion.INTEGER_COLUMNS | ingestion.FLOAT_COLUMNS
+            else ["AA"] * 3
+        )
     values.update(
         Year=[2022] * 3,
         Month=[1] * 3,
@@ -75,7 +79,13 @@ def test_incremental_skip_and_corruption_recovery(tmp_path, monkeypatch, caplog)
     configs.mkdir()
     config = configs / "config.yaml"
     config.write_text(
-        yaml.safe_dump({"ingestion": dict(years=[2022], months=[1], output_dir="data/raw", chunk_size=1)})
+        yaml.safe_dump(
+            {
+                "ingestion": dict(
+                    years=[2022], months=[1], output_dir="data/raw", chunk_size=1
+                )
+            }
+        )
     )
     calls = []
 

@@ -82,7 +82,9 @@ def test_op_carrier_stands_in_for_missing_op_unique_carrier():
     assert flight.OP_UNIQUE_CARRIER == "DL"
 
 
-@pytest.mark.parametrize("value", ["2025-05-15", "5/15/2025 12:00:00 AM", "5/15/2025", "2025-05-15T00:00:00"])
+@pytest.mark.parametrize(
+    "value", ["2025-05-15", "5/15/2025 12:00:00 AM", "5/15/2025", "2025-05-15T00:00:00"]
+)
 def test_fl_date_accepts_iso_and_transtats_formats(value):
     assert record(FL_DATE=value).FL_DATE == date(2025, 5, 15)
 
@@ -94,7 +96,8 @@ def test_hhmm_accepts_integer_like_values(value):
 
 def test_frame_preserves_order_and_raw_dtypes():
     flights = [
-        record(ORIGIN=code, DISTANCE=100.0 * i, CRS_ARR_TIME=1200) for i, code in enumerate(["AAA", "BBB", "CCC"])
+        record(ORIGIN=code, DISTANCE=100.0 * i, CRS_ARR_TIME=1200)
+        for i, code in enumerate(["AAA", "BBB", "CCC"])
     ]
     frame = records_to_frame(flights)
     assert frame["ORIGIN"].tolist() == ["AAA", "BBB", "CCC"]
@@ -107,7 +110,9 @@ def test_frame_preserves_order_and_raw_dtypes():
 # ----------------------------------------------------------- invalid records
 
 
-@pytest.mark.parametrize("field", ["FL_DATE", "OP_UNIQUE_CARRIER", "ORIGIN", "DEST", "CRS_DEP_TIME"])
+@pytest.mark.parametrize(
+    "field", ["FL_DATE", "OP_UNIQUE_CARRIER", "ORIGIN", "DEST", "CRS_DEP_TIME"]
+)
 @pytest.mark.parametrize("value", [..., None, "", "   "])
 def test_required_field_missing_null_or_empty_is_rejected(field, value):
     with pytest.raises(ValidationError) as exc_info:
@@ -254,7 +259,9 @@ client = TestClient(app)
 
 
 def test_api_accepts_record_with_only_required_fields():
-    response = client.post("/classify", json={"instances": [VALID, {**VALID, "EXTRA": 1}]})
+    response = client.post(
+        "/classify", json={"instances": [VALID, {**VALID, "EXTRA": 1}]}
+    )
     assert response.status_code == 200
     assert len(response.json()["classifications"]) == 2
 

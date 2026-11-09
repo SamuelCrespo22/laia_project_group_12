@@ -67,7 +67,10 @@ def validate_allowlist(columns: Sequence[str]) -> tuple[str, ...]:
     unknown = [c for c in columns if c not in SPECS]
     if unknown:
         raise ValueError(f"Allowlist columns not in the data contract: {unknown}")
-    leaking = sorted(set(find_post_departure_columns(columns)) | {c for c in columns if not SPECS[c].pre_departure})
+    leaking = sorted(
+        set(find_post_departure_columns(columns))
+        | {c for c in columns if not SPECS[c].pre_departure}
+    )
     if leaking:
         raise ValueError(f"Allowlist contains post-departure columns: {leaking}")
     return columns
@@ -75,10 +78,14 @@ def validate_allowlist(columns: Sequence[str]) -> tuple[str, ...]:
 
 def load_config(path: Optional[Path | str] = None) -> PreprocessingConfig:
     """Read the preprocessing parameters; relative paths are relative to the cwd."""
-    config = yaml.safe_load(Path(path or DEFAULT_CONFIG_PATH).read_text(encoding="utf-8"))
+    config = yaml.safe_load(
+        Path(path or DEFAULT_CONFIG_PATH).read_text(encoding="utf-8")
+    )
     target = config["target"]
     if target["name"] != TARGET_COLUMN or tuple(target["classes"]) != CLASSES:
-        raise ValueError(f"configs target must be {TARGET_COLUMN} with classes {CLASSES}")
+        raise ValueError(
+            f"configs target must be {TARGET_COLUMN} with classes {CLASSES}"
+        )
     on_time_max = float(target["thresholds"]["on_time_max"])
     moderate_delay_max = float(target["thresholds"]["moderate_delay_max"])
     if not on_time_max < moderate_delay_max:
@@ -100,7 +107,9 @@ def default_config() -> PreprocessingConfig:
 
 
 # ------------------------------------------------------------------- target
-def label_delay_severity(arr_delay: pd.Series, config: Optional[PreprocessingConfig] = None) -> pd.Series:
+def label_delay_severity(
+    arr_delay: pd.Series, config: Optional[PreprocessingConfig] = None
+) -> pd.Series:
     """``ARR_DELAY`` (minutes) -> severity class; null delays stay null."""
     config = config or default_config()
     delay = pd.to_numeric(arr_delay).astype("Float64")
@@ -116,7 +125,9 @@ def label_delay_severity(arr_delay: pd.Series, config: Optional[PreprocessingCon
     return pd.Series(labels, index=arr_delay.index, dtype="string", name=TARGET_COLUMN)
 
 
-def compute_delay_severity(arr_delay: float, config: Optional[PreprocessingConfig] = None):
+def compute_delay_severity(
+    arr_delay: float, config: Optional[PreprocessingConfig] = None
+):
     """Scalar version of ``label_delay_severity``; returns NaN for a null delay."""
     if pd.isna(arr_delay):
         return np.nan
@@ -136,7 +147,11 @@ def filter_valid_flights(df: pd.DataFrame) -> pd.DataFrame:
     missing = [c for c in LABEL_SOURCE_COLUMNS if c not in df.columns]
     if missing:
         raise ValueError(f"Missing columns needed to filter flights: {missing}")
-    mask = _equals_zero(df["CANCELLED"]) & _equals_zero(df["DIVERTED"]) & df["ARR_DELAY"].notna().to_numpy(dtype=bool)
+    mask = (
+        _equals_zero(df["CANCELLED"])
+        & _equals_zero(df["DIVERTED"])
+        & df["ARR_DELAY"].notna().to_numpy(dtype=bool)
+    )
     return df.loc[mask].copy()
 
 
@@ -159,7 +174,9 @@ def _distance_group(distance: pd.Series) -> pd.Series:
 def _derive(name: str, source: pd.Series) -> pd.Series:
     if name in ("MONTH", "DAY_OF_WEEK"):
         fl_date = pd.to_datetime(source)
-        values = fl_date.dt.month if name == "MONTH" else fl_date.dt.dayofweek + 1  # BTS: Monday=1
+        values = (
+            fl_date.dt.month if name == "MONTH" else fl_date.dt.dayofweek + 1
+        )  # BTS: Monday=1
         return values.astype("Int64")
     if name in ("DEP_TIME_BLK", "ARR_TIME_BLK"):
         return _time_block(source)
@@ -175,7 +192,9 @@ def _typed(name: str, values: pd.Series) -> pd.Series:
     return values.astype(pandas_dtype(spec))
 
 
-def build_features(frame: pd.DataFrame, config: Optional[PreprocessingConfig] = None) -> pd.DataFrame:
+def build_features(
+    frame: pd.DataFrame, config: Optional[PreprocessingConfig] = None
+) -> pd.DataFrame:
     """Allowlisted features of each record, in allowlist order and input row order.
 
     Derivable columns (calendar fields, time blocks, distance group) are
@@ -205,10 +224,14 @@ def assert_no_leakage_columns(columns: Sequence[str]) -> None:
     """Raise if any column is only known after the scheduled departure."""
     leaking = find_post_departure_columns(list(columns))
     if leaking:
-        raise AssertionError(f"Post-departure columns reached the features: {sorted(leaking)}")
+        raise AssertionError(
+            f"Post-departure columns reached the features: {sorted(leaking)}"
+        )
 
 
-def build_training_frame(raw: pd.DataFrame, config: Optional[PreprocessingConfig] = None) -> pd.DataFrame:
+def build_training_frame(
+    raw: pd.DataFrame, config: Optional[PreprocessingConfig] = None
+) -> pd.DataFrame:
     """Raw flights -> eligible flights -> allowlisted features + target."""
     config = config or default_config()
     eligible = filter_valid_flights(raw)

@@ -33,7 +33,14 @@ from datetime import date, datetime
 from typing import Annotated, Any, Literal, Optional, Sequence
 
 import pandas as pd
-from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, create_model, model_validator
+from pydantic import (
+    BaseModel,
+    BeforeValidator,
+    ConfigDict,
+    Field,
+    create_model,
+    model_validator,
+)
 
 LOG = logging.getLogger("bts.contract")
 
@@ -91,7 +98,9 @@ class ColumnSpec:
 
 def _post(name: str, kind: Kind, source: str, **rules) -> ColumnSpec:
     """Post-departure column: kept in raw data, never accepted as model input."""
-    return ColumnSpec(name, kind, source, pre_departure=False, request="ignored", **rules)
+    return ColumnSpec(
+        name, kind, source, pre_departure=False, request="ignored", **rules
+    )
 
 
 # Order matters: the raw Parquet schema follows the in_raw columns in this order.
@@ -142,8 +151,12 @@ COLUMNS: tuple[ColumnSpec, ...] = (
     ColumnSpec("CRS_ARR_TIME", "int", "CRSArrTime", hhmm=True, raw_policy="error"),
     _post("ARR_TIME", "int", "ArrTime"),
     _post("ARR_DELAY", "float", "ArrDelay"),
-    _post("CANCELLED", "float", "Cancelled", allowed=frozenset({0, 1}), raw_policy="error"),
-    _post("DIVERTED", "float", "Diverted", allowed=frozenset({0, 1}), raw_policy="error"),
+    _post(
+        "CANCELLED", "float", "Cancelled", allowed=frozenset({0, 1}), raw_policy="error"
+    ),
+    _post(
+        "DIVERTED", "float", "Diverted", allowed=frozenset({0, 1}), raw_policy="error"
+    ),
     # Six negative values exist in the 2022/2023 source: logged, kept for preprocessing.
     ColumnSpec("CRS_ELAPSED_TIME", "float", "CRSElapsedTime", min=0, raw_policy="warn"),
     ColumnSpec("FLIGHTS", "int", "Flights", min=1),
@@ -167,7 +180,9 @@ COLUMN_MAP = {spec.source: spec.name for spec in RAW_SPECS if spec.source}
 EXPECTED = [spec.name for spec in RAW_SPECS]
 INTEGER_COLUMNS = {spec.name for spec in RAW_SPECS if spec.kind == "int"}
 FLOAT_COLUMNS = {spec.name for spec in RAW_SPECS if spec.kind == "float"}
-RAW_VALUE_CHECK_COLUMNS = [spec.name for spec in RAW_SPECS if spec.raw_required or spec.raw_policy]
+RAW_VALUE_CHECK_COLUMNS = [
+    spec.name for spec in RAW_SPECS if spec.raw_required or spec.raw_policy
+]
 
 # ------------------------------------------------------------------ requests
 REQUIRED_FIELDS = [spec.name for spec in COLUMNS if spec.request == "required"]
@@ -204,16 +219,24 @@ POST_DEPARTURE_PATTERNS: tuple[str, ...] = tuple(
 
 def find_post_departure_columns(columns: Sequence[str]) -> list[str]:
     """Return the columns that are only known after the scheduled departure."""
-    return [column for column in columns if any(re.fullmatch(pattern, column) for pattern in POST_DEPARTURE_PATTERNS)]
+    return [
+        column
+        for column in columns
+        if any(re.fullmatch(pattern, column) for pattern in POST_DEPARTURE_PATTERNS)
+    ]
 
 
 def _check_contract_consistency() -> None:
     for spec in COLUMNS:
         if not spec.pre_departure and spec.request != "ignored":
-            raise AssertionError(f"{spec.name} is post-departure but accepted in requests")
+            raise AssertionError(
+                f"{spec.name} is post-departure but accepted in requests"
+            )
     leaked = find_post_departure_columns([s.name for s in COLUMNS if s.pre_departure])
     if leaked:
-        raise AssertionError(f"Pre-departure columns match post-departure patterns: {leaked}")
+        raise AssertionError(
+            f"Pre-departure columns match post-departure patterns: {leaked}"
+        )
 
 
 _check_contract_consistency()
@@ -234,7 +257,9 @@ def _valid_mask(spec: ColumnSpec, values: pd.Series) -> pd.Series:
     if spec.max is not None:
         ok &= values <= spec.max
     if spec.hhmm:
-        ok &= ((values >= 0) & (values <= 2359) & (values % 100 < 60)) | (values == 2400)
+        ok &= ((values >= 0) & (values <= 2359) & (values % 100 < 60)) | (
+            values == 2400
+        )
     if spec.pattern:
         ok &= values.astype(str).str.fullmatch(spec.pattern)
     return ok.astype(bool)
@@ -269,7 +294,9 @@ def validate_values(frame: pd.DataFrame) -> None:
         invalid = int((~_valid_mask(spec, values)).sum())
         if not invalid:
             continue
-        message = f"{invalid} {spec.name} values violate the contract ({spec.describe()})"
+        message = (
+            f"{invalid} {spec.name} values violate the contract ({spec.describe()})"
+        )
         if spec.raw_policy == "error":
             raise ValueError(message)
         LOG.warning("Raw contract anomaly: %s; retained for preprocessing", message)
@@ -277,7 +304,9 @@ def validate_values(frame: pd.DataFrame) -> None:
         dict(year=frame["YEAR"], month=frame["MONTH"], day=frame["DAY_OF_MONTH"]),
         errors="raise",
     )
-    if not (frame["FL_DATE"].reset_index(drop=True) == expected.reset_index(drop=True)).all():
+    if not (
+        frame["FL_DATE"].reset_index(drop=True) == expected.reset_index(drop=True)
+    ).all():
         raise ValueError("FL_DATE does not match calendar components")
 
 
@@ -392,7 +421,9 @@ class _FlightRecordBase(BaseModel):
 
 
 def _request_field(spec: ColumnSpec):
-    annotation = Annotated[Optional[_PYTHON_TYPES[spec.kind]], BeforeValidator(_field_parser(spec))]
+    annotation = Annotated[
+        Optional[_PYTHON_TYPES[spec.kind]], BeforeValidator(_field_parser(spec))
+    ]
     default = ... if spec.request == "required" else None
     return annotation, Field(default=default, description=spec.describe())
 
@@ -401,7 +432,9 @@ FlightRecord = create_model(
     "FlightRecord",
     __base__=_FlightRecordBase,
     __doc__="One flight in a /classify request, validated against the data contract.",
-    **{spec.name: _request_field(spec) for spec in COLUMNS if spec.request != "ignored"},
+    **{
+        spec.name: _request_field(spec) for spec in COLUMNS if spec.request != "ignored"
+    },
 )
 
 
@@ -418,7 +451,9 @@ def pandas_dtype(spec: ColumnSpec) -> str:
 
 def records_to_frame(records: Sequence[BaseModel]) -> pd.DataFrame:
     """Validated records -> DataFrame in input order, typed like the raw Parquet data."""
-    frame = pd.DataFrame([record.model_dump() for record in records], columns=REQUEST_COLUMNS)
+    frame = pd.DataFrame(
+        [record.model_dump() for record in records], columns=REQUEST_COLUMNS
+    )
     for name in REQUEST_COLUMNS:
         spec = SPECS[name]
         if spec.kind == "date":

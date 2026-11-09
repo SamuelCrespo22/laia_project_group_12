@@ -28,10 +28,15 @@ import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
 
-from src.data.preprocessor import (CLASSES, DERIVATION_SOURCES,
-                                   LABEL_SOURCE_COLUMNS, TARGET_COLUMN,
-                                   PreprocessingConfig, build_training_frame,
-                                   load_config)
+from src.data.preprocessor import (
+    CLASSES,
+    DERIVATION_SOURCES,
+    LABEL_SOURCE_COLUMNS,
+    TARGET_COLUMN,
+    PreprocessingConfig,
+    build_training_frame,
+    load_config,
+)
 
 LOG = logging.getLogger("bts.make_dataset")
 

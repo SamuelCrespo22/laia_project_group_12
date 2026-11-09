@@ -10,13 +10,23 @@ from fastapi.testclient import TestClient
 
 import src.api.app as api_app
 from src.data import make_dataset
-from src.data.contract import (FlightRecord, find_post_departure_columns,
-                               records_to_frame)
-from src.data.preprocessor import (DEFAULT_CONFIG_PATH, TARGET_COLUMN,
-                                   build_features, build_training_frame,
-                                   compute_delay_severity, default_config,
-                                   filter_valid_flights, label_delay_severity,
-                                   load_config, validate_allowlist)
+from src.data.contract import (
+    FlightRecord,
+    find_post_departure_columns,
+    records_to_frame,
+)
+from src.data.preprocessor import (
+    DEFAULT_CONFIG_PATH,
+    TARGET_COLUMN,
+    build_features,
+    build_training_frame,
+    compute_delay_severity,
+    default_config,
+    filter_valid_flights,
+    label_delay_severity,
+    load_config,
+    validate_allowlist,
+)
 
 # Post-departure columns listed in Issue #3; DEP_DELAY*, ARR_DELAY* and DIV_*
 # are expanded to real TranStats field names.

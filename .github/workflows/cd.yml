@@ -1,17 +1,18 @@
 name: CD
 
-push: 
-  branches:
-   - main
+on:
+  push: 
+    branches:
+      - main
 
 permissions: 
   contents: read
-  read packages: write
+  packages: write
 
 jobs: 
   publish-serving-image: 
-  name: Build and push serving image 
-  runs-on: ubuntu-latest
+    name: Build and push serving image 
+    runs-on: ubuntu-latest
 
   steps:
     - name: Checkout repository

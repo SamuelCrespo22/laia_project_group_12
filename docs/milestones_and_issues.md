@@ -254,6 +254,7 @@ This document defines the milestone schedule and actionable GitHub issues for th
 - **Acceptance Criteria:**
   - Requests/sec, latency quantiles (p50, p95, p99), and error rates scraped by Prometheus.
   - Dashboard visualizes API activity in Grafana.
+  - Prometheus and Grafana return to `docker/docker-compose.yml` (removed in Issue 2.4 until monitoring exists), pinned to explicit versions and with persistent storage.
 
 ### Issue 4.2: Input Feature Drift Detection
 - **Labels:** `monitoring`, `drift`

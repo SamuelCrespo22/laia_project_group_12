@@ -20,6 +20,28 @@ data:
     - 2022
     - 2023
 
+temporal_split:
+  date_column: "FL_DATE"
+
+  train:
+    start: "2022-01-01"
+    end: "2023-07-01"
+
+  validation:
+    start: "2023-07-01"
+    end: "2023-10-01"
+
+  test:
+    start: "2023-10-01"
+    end: "2024-01-01"
+
+  output_dir: "data/processed"
+
+
+  report_class_distribution: true
+  batch_size: 50000
+  compression: "zstd"
+
 ingestion:
   years: [2022, 2023]
   months: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]

@@ -92,7 +92,8 @@ def provenance(config_path=None):
             ).strip()
         )
     except (OSError, subprocess.CalledProcessError):
-        commit, dirty = None, None
+        # The training image has no Git, so the commit is passed in.
+        commit, dirty = os.environ.get("GIT_COMMIT") or None, None
     versions = {"python": platform.python_version()}
     for package in (
         "numpy",

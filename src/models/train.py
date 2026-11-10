@@ -26,8 +26,13 @@ def main(argv=None):
         action="store_true",
         help="Evaluate selected model on held-out test after CV selection",
     )
+    parser.add_argument(
+        "--no-tracking", action="store_true", help="Do not log this run to MLflow"
+    )
     args = parser.parse_args(argv)
     config = yaml.safe_load(Path(args.config).read_text(encoding="utf-8"))
+    if args.no_tracking:
+        config["training"]["tracking"] = {"enabled": False}
     if args.experiment_config:
         overlay = yaml.safe_load(
             Path(args.experiment_config).read_text(encoding="utf-8")

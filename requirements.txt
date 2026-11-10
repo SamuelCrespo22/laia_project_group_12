@@ -15,6 +15,7 @@ tsfresh>=0.21.0,<0.22.0
 
 # MLOps & Experiment Tracking
 mlflow>=2.10.0,<3.0.0  # MLflow 3 clients fail on log_model against the 2.10 server
+sqlalchemy>=2.0.0,<2.1.0  # MLflow 2 SQL stores do not import with SQLAlchemy 2.1
 dvc>=3.40.0
 
 # API Serving & Validation

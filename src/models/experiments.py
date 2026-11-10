@@ -22,6 +22,7 @@ from src.models.dataset import prepare_split, prepared_batches
 from src.models.evaluation import EvaluationAccumulator, evaluate
 from src.models.factory import create_model
 from src.models.search import ablations, sequential
+from src.models.tracking import check_server, load_tracking_config, log_training
 
 
 def expanding_folds(X, n_splits):
@@ -132,7 +133,15 @@ def _evaluate_split(model, order, path, period, preprocessing, settings):
     return metrics, counts
 
 
-def _run(config, config_path, preprocessing, output_dir, snapshot, final_test=False):
+def _run(
+    config,
+    config_path,
+    preprocessing,
+    output_dir,
+    snapshot,
+    final_test=False,
+    tracking=None,
+):
     settings = config["training"]
     serialization = settings.get("serialization", "joblib")
     filename = artifacts.model_filename(serialization)
@@ -309,6 +318,10 @@ def _run(config, config_path, preprocessing, output_dir, snapshot, final_test=Fa
             settings,
         )
         report["test_identity"] = snapshot["splits"]["test"]
+    if tracking is not None:
+        report["mlflow"] = log_training(
+            tracking, config, output, report, snapshot, list(X.columns)
+        )
     report["state"] = "completed"
     artifacts.write_json(output / "summary.json", report)
     return report
@@ -325,6 +338,9 @@ def run(config, config_path, preprocessing, output_dir, final_test=False):
     artifacts.write_json(output / "status.json", {"state": "running"})
     try:
         settings = config["training"]
+        tracking = load_tracking_config(config)
+        if tracking is not None:
+            check_server(tracking.tracking_uri)
         paths = load_published_splits(settings["manifest_path"])
         names = (
             ("train", "validation", "test") if final_test else ("train", "validation")
@@ -344,7 +360,13 @@ def run(config, config_path, preprocessing, output_dir, final_test=False):
             output / "inputs.json", {k: v for k, v in snapshot.items() if k != "paths"}
         )
         report = _run(
-            config, config_path, preprocessing, output_dir, snapshot, final_test
+            config,
+            config_path,
+            preprocessing,
+            output_dir,
+            snapshot,
+            final_test,
+            tracking,
         )
         artifacts.write_json(
             output / "status.json",

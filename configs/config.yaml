@@ -85,6 +85,8 @@ training:
   evaluation_batch_size: 10000
   memory_budget_mb: 8192
   cv_splits: 3
+  tracking:
+    enabled: true
   # Default mode runs only these five candidates. Optional Modular/search overlays
   # are separate; they do not change this controlled baseline.
   experiments:
@@ -178,8 +180,11 @@ features:
     - "DISTANCE_GROUP"
 
 mlflow:
+  # MLFLOW_TRACKING_URI overrides this value.
   tracking_uri: "http://localhost:5000"
-  experiment_name: "flight-delay-severity-prediction"
+  # Base name; the training mode is appended (flight-delay/baseline).
+  experiment_name: "flight-delay"
+  registered_model_name: "flight-delay-severity"
 
 api:
   host: "0.0.0.0"

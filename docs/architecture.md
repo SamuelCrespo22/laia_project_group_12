@@ -24,8 +24,8 @@ automated deployment needs self-hosted GitHub Actions runners on them.
 | Encoders | `src/features/encoders.py` | Done |
 | CI and image publishing | `.github/workflows/` | Done |
 | Containers | `docker/` | Done, without a trained model |
-| Training | `src/models/train.py` | Planned (#5) |
-| Experiment tracking | MLflow | Server runs in Compose, integration planned (#6) |
+| Training | `src/models/train.py` | Done: numeric baseline on a sample |
+| Experiment tracking | `src/models/tracking.py` | Done: runs, registry and aliases |
 | Inference | `src/api/app.py` | Validation done, returns a placeholder (#7) |
 | VM deployment and registration | VM 1 and VM 2 | Planned (#14, #10) |
 | Monitoring | Prometheus, Grafana, drift checks | Planned (Milestone 4) |
@@ -38,7 +38,7 @@ automated deployment needs self-hosted GitHub Actions runners on them.
   `build_features`, and encoders are saved with the classifier as one pipeline.
 - **Evaluation:** chronological splits. Models are selected by validation Macro
   F1, with multiclass log loss as the secondary metric.
-- **Model promotion:** planned through MLflow registry aliases, `staging` then
-  `production`. The alias API replaces the deprecated stages.
+- **Model promotion:** MLflow registry aliases `staging` and `champion`, which
+  replace the deprecated stages. The rule is in `docs/training.md`.
 - **Monitoring:** planned for system metrics, input drift, and performance by
   airline and origin airport once delayed labels arrive.

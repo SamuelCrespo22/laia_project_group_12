@@ -313,3 +313,21 @@ categorical branch and optional resampling into small builders. It still returns
 native sklearn/imbalanced-learn pipelines. Existing encoder behavior is unchanged.
 `training_frame` remains outside the inference pipeline because it filters rows
 and builds y; inference transformations remain inside the serialized pipeline.
+
+## Issue #6 (2.2): MLflow tracking and registry
+
+Set `MLFLOW_TRACKING_URI` to the server and run `python -m src.models.train`.
+Training stops before it starts if the server is unreachable. `--no-tracking`
+skips MLflow.
+
+Each training mode has its own experiment: `flight-delay/baseline`,
+`flight-delay/ablations` and `flight-delay/search`. An execution is a parent run
+with one nested run per candidate. Candidates log their parameters, metrics,
+pipeline, classification report, confusion matrix, Git commit and split hashes.
+Subgroup summaries use groups with at least 100 flights; the full detail is in
+`metrics.json`.
+
+**Promotion rule.** The candidate selected by CV becomes a new version of
+`flight-delay-severity` with the alias `staging`. It takes the alias `champion`
+only if its validation Macro F1 is strictly higher than the Dummy reference and
+the current champion, on the same validation file.

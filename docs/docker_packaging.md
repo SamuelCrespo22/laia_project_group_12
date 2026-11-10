@@ -34,8 +34,7 @@ container recreation was verified manually.
 
 ## Current limits
 
-- `docker compose run training` fails until `src/models/train.py` exists (#5).
 - The serving image contains no model. It must receive one at deployment (#7).
-- The training image has no Git, so the commit hash must be passed in for MLflow.
+- The training image has no Git, so pass the commit in through `GIT_COMMIT`.
 - On Linux hosts, the mounted `models/` and `reports/` folders must be writable
   by UID 10001.

@@ -30,6 +30,7 @@ from src.models.transformers import RouteIQR
 def environment(tmp_path):
     config = yaml.safe_load(open("configs/config.yaml", encoding="utf-8"))
     config["training"]["cv_splits"] = 2
+    config["training"]["tracking"] = {"enabled": False}
     rows = []
     for start in ("2023-06-01", "2023-07-01", "2023-10-01"):
         for day in pd.date_range(start, periods=12):

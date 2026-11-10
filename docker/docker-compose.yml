@@ -43,6 +43,7 @@ services:
     image: flight-delay-training:dev
     environment:
       MLFLOW_TRACKING_URI: http://mlflow:5000
+      GIT_COMMIT: ${GIT_COMMIT:-}
     volumes:
       - ../data:/app/data:ro
       - ../models:/app/models

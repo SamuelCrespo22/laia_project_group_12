@@ -15,12 +15,12 @@ scheduled departure. The official specification is [essay.pdf](essay.pdf).
 ## Status
 
 Working: ingestion, data contract, preprocessing, temporal splits, encoders,
-Docker images, CI and image publishing to GHCR.
+baseline training, MLflow tracking and registry, Docker images, CI and image
+publishing to GHCR.
 
-Not implemented yet: model training (#5), MLflow integration (#6), real
-inference in `/classify` (#7, it currently always returns `on_time`), VM
-deployment (#14) and endpoint registration (#10). Monitoring is planned for
-Milestone 4.
+Not implemented yet: real inference in `/classify` (#7, it currently always
+returns `on_time`), VM deployment (#14) and endpoint registration (#10).
+Monitoring is planned for Milestone 4.
 
 ## Documentation
 

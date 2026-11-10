@@ -16,6 +16,7 @@ class PredictionRequest(BaseModel):
 
     instances: List[FlightRecord] = Field(
         ...,
+        min_length=1,
         description="Array of flight records with raw attributes available prior to departure.",
         examples=[
             [

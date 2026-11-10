@@ -26,7 +26,7 @@ automated deployment needs self-hosted GitHub Actions runners on them.
 | Containers | `docker/` | Done, without a trained model |
 | Training | `src/models/train.py` | Done: numeric baseline on a sample |
 | Experiment tracking | `src/models/tracking.py` | Done: runs, registry and aliases |
-| Inference | `src/api/app.py` | Validation done, returns a placeholder (#7) |
+| Inference | `src/api/app.py` | Done: loads the pipeline from `MODEL_PATH` |
 | VM deployment and registration | VM 1 and VM 2 | Planned (#14, #10) |
 | Monitoring | Prometheus, Grafana, drift checks | Planned (Milestone 4) |
 

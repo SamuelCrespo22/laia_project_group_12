@@ -192,7 +192,9 @@ api:
   endpoint: "/classify"
 
 serving:
-  model_uri: "models/model.pkl"
+  # MODEL_PATH, MODEL_NAME and MODEL_VERSION override these at deployment.
+  model_path: "models/model.joblib"
+  model_name: "flight-delay-severity"
   host: "0.0.0.0"
   port: 8000
 

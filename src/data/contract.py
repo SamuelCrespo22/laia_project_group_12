@@ -387,6 +387,9 @@ def _field_parser(spec: ColumnSpec):
                 value = value.upper()
             if value == "":
                 value = None
+        # JSON serializers write missing pandas values as NaN.
+        if isinstance(value, float) and not math.isfinite(value):
+            value = None
         if value is None:
             if required:
                 raise ValueError("required field must not be null or empty")

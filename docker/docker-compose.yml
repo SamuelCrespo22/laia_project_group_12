@@ -9,6 +9,10 @@ services:
       - "8000:8000"
     environment:
       MLFLOW_TRACKING_URI: http://mlflow:5000
+      MODEL_PATH: /app/models/model.joblib
+      MODEL_VERSION: ${MODEL_VERSION:-local}
+    volumes:
+      - ../models:/app/models:ro
     depends_on:
       mlflow:
         condition: service_started

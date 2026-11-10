@@ -15,12 +15,11 @@ scheduled departure. The official specification is [essay.pdf](essay.pdf).
 ## Status
 
 Working: ingestion, data contract, preprocessing, temporal splits, encoders,
-baseline training, MLflow tracking and registry, Docker images, CI and image
-publishing to GHCR.
+baseline training, MLflow tracking and registry, inference in `/classify`, Docker
+images, CI and image publishing to GHCR.
 
-Not implemented yet: real inference in `/classify` (#7, it currently always
-returns `on_time`), VM deployment (#14) and endpoint registration (#10).
-Monitoring is planned for Milestone 4.
+Not implemented yet: deployment of a trained model to the VMs (#14) and endpoint
+registration (#10). Monitoring is planned for Milestone 4.
 
 ## Documentation
 
@@ -90,11 +89,12 @@ ignored.
 | Status | Meaning |
 | :--- | :--- |
 | `200` | Predictions returned |
-| `400` | Empty `instances` |
-| `422` | Malformed JSON or a record that violates the data contract |
+| `400` | Malformed JSON, empty `instances` or a record that violates the data contract |
 | `500` | Inference failure |
 
-`GET /health` reports the service status.
+`GET /health` reports the service status and the loaded model. The service does
+not start without a model. `MODEL_PATH` selects the file, by default
+`models/model.joblib`.
 
 ## CI/CD
 

@@ -40,8 +40,8 @@ subgroups. Requiring more would risk rejecting evaluation records.
 | Unseen airline or airport | Accepted, handled by the encoders |
 
 A wrong type signals a malformed client. An out-of-range optional value loses only
-that value, so it should not discard the batch. Rejected requests currently return
-422. The final status code is decided in #7.
+that value, so it should not discard the batch. Non-finite numbers count as missing.
+Every rejected request returns 400, so clients handle one code for invalid input.
 
 `TAIL_NUM` counts as post-departure because aircraft swaps happen up to departure.
 `CANCELLED` and `DIVERTED` are outcomes, used only for filtering.

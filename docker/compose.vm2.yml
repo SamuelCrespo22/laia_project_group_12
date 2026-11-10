@@ -7,6 +7,7 @@ services:
       - "8000:8000"
     environment:
       MODEL_PATH: /app/models/model.joblib
+      MODEL_VERSION: ${MODEL_VERSION:-unknown}
     volumes:
       - /opt/flight-delay/models:/app/models:ro
     restart: unless-stopped

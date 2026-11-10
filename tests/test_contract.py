@@ -269,6 +269,6 @@ def test_api_accepts_record_with_only_required_fields():
 def test_api_error_names_instance_and_field():
     bad = {k: v for k, v in VALID.items() if k != "ORIGIN"}
     response = client.post("/classify", json={"instances": [VALID, bad]})
-    assert response.status_code == 422
+    assert response.status_code == 400
     locations = [error["loc"] for error in response.json()["detail"]]
     assert ["body", "instances", 1, "ORIGIN"] in locations

@@ -73,6 +73,90 @@ preprocessing:
     - "DISTANCE"
     - "DISTANCE_GROUP"
 
+training:
+  serialization: joblib
+  manifest_path: "data/processed/temporal_split_manifest.json"
+  output_dir: "models/runs"
+  seed: 42
+  threads: 1
+  # Validated controlled baseline. null opts into full train and needs more RAM.
+  sample_size: 100000
+  read_batch_size: 10000
+  evaluation_batch_size: 10000
+  memory_budget_mb: 8192
+  cv_splits: 3
+  # Default mode runs only these five candidates. Optional Modular/search overlays
+  # are separate; they do not change this controlled baseline.
+  experiments:
+    - name: dummy_prior
+      model: dummy
+      params: {strategy: prior, constant: null}
+      scaling: passthrough
+      features: &numeric_features
+        mode: minimal_numeric
+        columns: [MONTH, DAY_OF_WEEK, CRS_DEP_TIME, CRS_ARR_TIME, CRS_ELAPSED_TIME, DISTANCE, DISTANCE_GROUP]
+        missing: {method: simple, strategy: median}
+        encoding: passthrough
+        engineering: {cyclic: false, interactions: false}
+        selection: {enabled: false, k: all}
+        outliers:
+          enabled: false
+          columns: [DISTANCE, CRS_ELAPSED_TIME]
+          min_group_size: 20
+          factor: 1.5
+          action: flag
+    - name: logistic
+      model: logistic
+      params: &logistic_params
+        C: 1.0
+        penalty: l2
+        solver: lbfgs
+        max_iter: 500
+        tol: 0.0001
+        multi_class: multinomial
+        class_weight: null
+        fit_intercept: true
+        dual: false
+        intercept_scaling: 1
+        l1_ratio: null
+        warm_start: false
+        verbose: 0
+      scaling: standard
+      features: *numeric_features
+    - name: logistic_balanced
+      model: logistic
+      params: {<<: *logistic_params, class_weight: balanced}
+      scaling: standard
+      features: *numeric_features
+    - name: lightgbm
+      model: lightgbm
+      params: &lightgbm_params
+        boosting_type: gbdt
+        n_estimators: 100
+        num_leaves: 31
+        learning_rate: 0.1
+        objective: multiclass
+        class_weight: null
+        max_depth: -1
+        min_child_samples: 20
+        min_child_weight: 0.001
+        min_split_gain: 0.0
+        colsample_bytree: 1.0
+        subsample: 1.0
+        subsample_freq: 0
+        subsample_for_bin: 200000
+        reg_alpha: 0.0
+        reg_lambda: 0.0
+        importance_type: split
+        verbosity: -1
+      scaling: passthrough
+      features: *numeric_features
+    - name: lightgbm_balanced
+      model: lightgbm
+      params: {<<: *lightgbm_params, class_weight: balanced}
+      scaling: passthrough
+      features: *numeric_features
+
 # Issue #4 (1.4): encoders fitted on the training split. Every column listed
 # here must be in preprocessing.feature_allowlist (checked at load time).
 features:

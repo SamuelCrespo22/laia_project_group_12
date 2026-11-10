@@ -1,0 +1,40 @@
+# Optional training-only overlay. The original config/baselines are unchanged.
+training:
+  sample_size: 5000
+  read_batch_size: 10000
+  evaluation_batch_size: 10000
+  ablations:
+    reference: &reference
+      name: modular_logistic_reference
+      model: logistic
+      params: {max_iter: 500, class_weight: balanced}
+      scaling: standard
+      features:
+        mode: modular
+        outliers: {method: passthrough}
+        missing: {method: simple, strategy: median}
+        encoding: onehot
+        engineering: {cyclic: false, interactions: false}
+        tsfresh: {enabled: false}
+        binning: {enabled: false}
+        selection: {method: passthrough}
+    families:
+      outliers: [{method: zscore, threshold: 3.0}]
+      missing: [{method: knn, n_neighbors: 3}]
+      normalization: [minmax, robust, passthrough]
+      binning: [{enabled: true, columns: [DISTANCE], n_bins: 5, encode: onehot}]
+      encoding: [passthrough]
+      engineering: [{cyclic: true, interactions: true}]
+      selection: [{method: kbest, k: 5}, {method: percentile, percentile: 50}]
+      imbalance: [{method: weights, class_weight: null}, {method: over}, {method: under}]
+  search:
+    stages: [A, B, C]
+    budget: {A: 5, B: 3, C: 5}
+    references:
+      logistic: *reference
+      lightgbm:
+        <<: *reference
+        name: modular_lightgbm_reference
+        model: lightgbm
+        params: {n_estimators: 100, num_leaves: 31, learning_rate: 0.1, verbosity: -1}
+        scaling: passthrough

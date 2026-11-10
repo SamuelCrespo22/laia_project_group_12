@@ -167,3 +167,8 @@ either value.
   flights, so re-running it would replace the current reference file.
 - The reference file covers fewer columns than `eda.reference_features`.
 - The `0.0001` threshold has not been compared with `0.001` on model performance.
+
+## Training
+
+See [training decisions and validation](training.md) for the controlled baseline,
+temporal CV, experiment search, historical metrics and sklearn refactor.

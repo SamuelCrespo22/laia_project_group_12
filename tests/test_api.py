@@ -1,4 +1,5 @@
 from fastapi.testclient import TestClient
+
 from src.api.app import app
 
 client = TestClient(app)
@@ -18,15 +19,15 @@ def test_classify_valid_batch():
                 "OP_UNIQUE_CARRIER": "AA",
                 "ORIGIN": "JFK",
                 "DEST": "LAX",
-                "CRS_DEP_TIME": 900
+                "CRS_DEP_TIME": 900,
             },
             {
                 "FL_DATE": "2025-05-16",
                 "OP_UNIQUE_CARRIER": "DL",
                 "ORIGIN": "ATL",
                 "DEST": "ORD",
-                "CRS_DEP_TIME": 1400
-            }
+                "CRS_DEP_TIME": 1400,
+            },
         ]
     }
     response = client.post("/classify", json=payload)
@@ -42,4 +43,3 @@ def test_classify_empty_instances():
     payload = {"instances": []}
     response = client.post("/classify", json=payload)
     assert response.status_code == 400
-

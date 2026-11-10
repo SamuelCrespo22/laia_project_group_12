@@ -1,12 +1,11 @@
-
 """Create reproducible temporal Parquet splits from BTS flight data."""
-import os
-import uuid
+
 import argparse
 import json
+import os
 import shutil
-import sys
 import tempfile
+import uuid
 from collections import Counter
 from pathlib import Path
 
@@ -15,7 +14,6 @@ import pyarrow.compute as pc
 import pyarrow.parquet as pq
 
 from src.data.temporal_split import SPLIT_NAMES, load_split_config
-
 
 CLASS_NAMES = ("on_time", "moderate_delay", "severe_delay")
 
@@ -76,20 +74,19 @@ def count_classes(table):
     valid_delays = pc.filter(delays, valid)
     total = len(valid_delays)
 
-    counts = Counter({
-        "on_time": pc.sum(
-            pc.less(valid_delays, 15)
-        ).as_py() or 0,
-        "moderate_delay": pc.sum(
-            pc.and_(
-                pc.greater_equal(valid_delays, 15),
-                pc.less(valid_delays, 60),
-            )
-        ).as_py() or 0,
-        "severe_delay": pc.sum(
-            pc.greater_equal(valid_delays, 60)
-        ).as_py() or 0,
-    })
+    counts = Counter(
+        {
+            "on_time": pc.sum(pc.less(valid_delays, 15)).as_py() or 0,
+            "moderate_delay": pc.sum(
+                pc.and_(
+                    pc.greater_equal(valid_delays, 15),
+                    pc.less(valid_delays, 60),
+                )
+            ).as_py()
+            or 0,
+            "severe_delay": pc.sum(pc.greater_equal(valid_delays, 60)).as_py() or 0,
+        }
+    )
 
     return counts, total
 
@@ -100,6 +97,7 @@ def build_splits(config_path="configs/config.yaml"):
 
     with Path(config_path).open(encoding="utf-8") as file:
         import yaml
+
         full_config = yaml.safe_load(file)
 
     raw_dir = Path(full_config["data"]["raw_dir"])
@@ -123,9 +121,7 @@ def build_splits(config_path="configs/config.yaml"):
     run_id = uuid.uuid4().hex
     final_run_dir = runs_dir / run_id
 
-    temp_dir = Path(
-        tempfile.mkdtemp(prefix=".temporal_splits_", dir=runs_dir)
-    )
+    temp_dir = Path(tempfile.mkdtemp(prefix=".temporal_splits_", dir=runs_dir))
 
     writers = {}
     counts = {name: 0 for name in SPLIT_NAMES}
@@ -184,17 +180,17 @@ def build_splits(config_path="configs/config.yaml"):
                 "classes": {
                     cls: {
                         "count": class_counts[name][cls],
-                        "percentage": round(
-                            100 * class_counts[name][cls] / eligible, 2
-                        ) if eligible else 0.0,
+                        "percentage": (
+                            round(100 * class_counts[name][cls] / eligible, 2)
+                            if eligible
+                            else 0.0
+                        ),
                     }
                     for cls in CLASS_NAMES
                 },
             }
 
-        with (temp_dir / "class_distribution.json").open(
-            "w", encoding="utf-8"
-        ) as file:
+        with (temp_dir / "class_distribution.json").open("w", encoding="utf-8") as file:
             json.dump(report, file, indent=2)
 
         # Verify outputs before publication.
@@ -240,9 +236,7 @@ def build_splits(config_path="configs/config.yaml"):
         }
 
         manifest_path = output_dir / "temporal_split_manifest.json"
-        temporary_manifest = output_dir / (
-            f".temporal_split_manifest_{run_id}.tmp"
-        )
+        temporary_manifest = output_dir / (f".temporal_split_manifest_{run_id}.tmp")
 
         with temporary_manifest.open("w", encoding="utf-8") as file:
             json.dump(manifest, file, indent=2)

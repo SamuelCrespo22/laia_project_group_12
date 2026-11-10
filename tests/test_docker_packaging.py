@@ -1,8 +1,6 @@
-
 from pathlib import Path
 
 import yaml
-
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DOCKER_DIR = PROJECT_ROOT / "docker"
@@ -44,13 +42,9 @@ def test_training_dockerfile_exists():
 
 
 def test_requirements_are_separated():
-    serving = (
-        DOCKER_DIR / "requirements-serving.txt"
-    ).read_text(encoding="utf-8")
+    serving = (DOCKER_DIR / "requirements-serving.txt").read_text(encoding="utf-8")
 
-    training = (
-        DOCKER_DIR / "requirements-training.txt"
-    ).read_text(encoding="utf-8")
+    training = (DOCKER_DIR / "requirements-training.txt").read_text(encoding="utf-8")
 
     assert "fastapi" in serving.lower()
     assert "uvicorn" in serving.lower()
@@ -94,15 +88,9 @@ def test_training_uses_mlflow_network():
 
     training = compose["services"]["training"]
 
-    assert (
-        training["environment"]["MLFLOW_TRACKING_URI"]
-        == "http://mlflow:5000"
-    )
+    assert training["environment"]["MLFLOW_TRACKING_URI"] == "http://mlflow:5000"
 
-    assert (
-        training["depends_on"]["mlflow"]["condition"]
-        == "service_started"
-    )
+    assert training["depends_on"]["mlflow"]["condition"] == "service_started"
 
 
 def test_training_data_is_read_only():

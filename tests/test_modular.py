@@ -18,8 +18,8 @@ from sklearn.preprocessing import StandardScaler
 
 from src.data.preprocessor import CLASSES, load_config
 from src.models import experiments
-from src.models.factory import build_pipeline, create_estimator, create_model
 from src.models.artifacts import describe_pipeline
+from src.models.factory import build_pipeline, create_estimator, create_model
 from src.models.search import ablations, sequential
 from src.models.train import main
 from src.models.transformers import (
@@ -27,7 +27,8 @@ from src.models.transformers import (
     OperationalFeatures,
     ZScoreOutliers,
 )
-from tests.test_training import environment as training_environment, prepared
+from tests.test_training import environment as training_environment
+from tests.test_training import prepared
 
 environment = training_environment
 
@@ -418,6 +419,7 @@ def test_modes_use_same_cv_without_test_or_validation_selection(
 def test_history_projects_and_aligns_after_filtering(environment, tmp_path):
     path, config, preprocessing, manifest = environment
     from pathlib import Path
+
     from src.models.dataset import prepare_split
 
     raw = pd.read_parquet(manifest["splits"]["train"]["path"])
@@ -587,7 +589,7 @@ def test_single_encoded_artifact_accepts_api_contract(records, tmp_path):
     """Prove inference compatibility without changing/calling the placeholder API."""
     from src.api.schemas import PredictionRequest, PredictionResponse
     from src.data.contract import records_to_frame
-    from src.models.artifacts import save_model, load_model
+    from src.models.artifacts import load_model, save_model
 
     X, y = records
     model, order = create_model(modular(), load_config(), 42, 1, CLASSES)

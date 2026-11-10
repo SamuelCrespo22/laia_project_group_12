@@ -3,8 +3,8 @@
 import copy
 
 import numpy as np
-from sklearn.model_selection import ParameterGrid, ParameterSampler, GridSearchCV
 from sklearn.metrics import f1_score, make_scorer
+from sklearn.model_selection import GridSearchCV, ParameterGrid, ParameterSampler
 from threadpoolctl import threadpool_limits
 
 from src.data.preprocessor import CLASSES

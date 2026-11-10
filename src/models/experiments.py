@@ -9,17 +9,17 @@ import numpy as np
 import pandas as pd
 from sklearn.model_selection import (
     TimeSeriesSplit,
-    cross_validate as sklearn_cross_validate,
 )
+from sklearn.model_selection import cross_validate as sklearn_cross_validate
+from threadpoolctl import threadpool_info, threadpool_limits
 
 from src.data.preprocessor import (
     CLASSES,
 )
 from src.data.temporal_split import load_published_splits, load_split_config
 from src.models import artifacts
-from src.models.evaluation import evaluate, EvaluationAccumulator
 from src.models.dataset import prepare_split, prepared_batches
-from threadpoolctl import threadpool_limits, threadpool_info
+from src.models.evaluation import EvaluationAccumulator, evaluate
 from src.models.factory import create_model
 from src.models.search import ablations, sequential
 

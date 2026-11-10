@@ -1,0 +1,12 @@
+# DEI VM 2: inference API, using the image published by the CD workflow.
+# IMAGE_TAG is the full commit SHA of a commit on main.
+services:
+  api:
+    image: ghcr.io/samuelcrespo22/laia_project_group_12-serving:${IMAGE_TAG:?Set IMAGE_TAG to a commit SHA on main}
+    ports:
+      - "8000:8000"
+    environment:
+      MODEL_PATH: /app/models/model.joblib
+    volumes:
+      - /opt/flight-delay/models:/app/models:ro
+    restart: unless-stopped

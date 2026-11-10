@@ -18,11 +18,10 @@ from src.data.preprocessor import (
     load_config,
 )
 from src.data.temporal_split import load_split_config
-from src.models.artifacts import load_model, save_model
+from src.models.artifacts import load_model, save_model, training_diagnostics
 from src.models.evaluation import evaluate
 from src.models.experiments import expanding_folds, prepare_split
 from src.models.factory import create_model
-from src.models.artifacts import training_diagnostics
 from src.models.train import main
 from src.models.transformers import RouteIQR
 
@@ -514,9 +513,10 @@ def test_zero_iqr_unknown_routes_duplicate_indices():
 
 
 def test_fold_statistics_and_native_threads(environment, monkeypatch):
-    from threadpoolctl import threadpool_info
-    from src.models import experiments
     from sklearn.pipeline import Pipeline
+    from threadpoolctl import threadpool_info
+
+    from src.models import experiments
 
     _, config, preprocessing, _ = environment
     experiment = copy.deepcopy(config["training"]["experiments"][1])
@@ -620,6 +620,7 @@ def test_day_folds_match_sklearn_with_uneven_flight_counts():
 
 def test_metrics_preserve_probability_order_and_missing_batch_classes():
     from sklearn.metrics import log_loss
+
     from src.models.evaluation import EvaluationAccumulator
 
     classes = ["c", "a", "b"]
@@ -646,8 +647,9 @@ def test_metrics_preserve_probability_order_and_missing_batch_classes():
 
 
 def test_effective_config_hash_once_and_status(environment, tmp_path, monkeypatch):
-    from src.models import artifacts
     from sklearn.pipeline import Pipeline
+
+    from src.models import artifacts
 
     path, config, _, _ = environment
     config["training"]["experiments"] = config["training"]["experiments"][1:2]
@@ -698,8 +700,9 @@ def test_source_fingerprint_includes_untracked_changes(tmp_path):
 
 
 def test_failed_run_and_atomic_export(environment, tmp_path, monkeypatch):
-    from src.models import artifacts
     from sklearn.pipeline import Pipeline
+
+    from src.models import artifacts
 
     path, _, _, _ = environment
     output = tmp_path / "failed"

@@ -1,27 +1,27 @@
 """Build native pipelines from an estimator and preprocessing settings."""
 
+import pandas as pd
 from sklearn.compose import ColumnTransformer
 from sklearn.dummy import DummyClassifier
 from sklearn.feature_selection import SelectKBest, SelectPercentile, f_classif
-from sklearn.impute import SimpleImputer, KNNImputer
+from sklearn.impute import KNNImputer, SimpleImputer
 from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import (
+    KBinsDiscretizer,
     MinMaxScaler,
+    OneHotEncoder,
     RobustScaler,
     StandardScaler,
-    KBinsDiscretizer,
-    OneHotEncoder,
 )
-import pandas as pd
 
 from src.data.contract import SPECS
 from src.models.transformers import (
     FlightFeatures,
     OperationalFeatures,
     RouteIQR,
-    ZScoreOutliers,
     TsfreshFeatures,
+    ZScoreOutliers,
 )
 
 
@@ -235,8 +235,8 @@ def _sampling(sampling, seed):
     sampler = "passthrough"
     pipeline_type = Pipeline
     if method != "passthrough":
-        from imblearn.pipeline import Pipeline as SamplingPipeline
         from imblearn.over_sampling import RandomOverSampler
+        from imblearn.pipeline import Pipeline as SamplingPipeline
         from imblearn.under_sampling import RandomUnderSampler
 
         samplers = {"over": RandomOverSampler, "under": RandomUnderSampler}

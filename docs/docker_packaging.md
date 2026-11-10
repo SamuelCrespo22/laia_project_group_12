@@ -34,7 +34,8 @@ container recreation was verified manually.
 
 ## Current limits
 
-- The serving image contains no model. It must receive one at deployment (#7).
+- The serving image contains no model, and the API does not start without one.
+  Place it at `models/model.joblib`, or `/opt/flight-delay/models/` on VM 2.
 - The training image has no Git, so pass the commit in through `GIT_COMMIT`.
 - On Linux hosts, the mounted `models/` and `reports/` folders must be writable
   by UID 10001.

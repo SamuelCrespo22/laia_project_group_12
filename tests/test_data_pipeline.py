@@ -27,6 +27,7 @@ from src.data.preprocessor import (
     load_config,
     validate_allowlist,
 )
+from src.models import transformers
 
 # Post-departure columns listed in Issue #3; DEP_DELAY*, ARR_DELAY* and DIV_*
 # are expanded to real TranStats field names.
@@ -310,7 +311,7 @@ def test_classify_endpoint_uses_the_training_feature_function(monkeypatch):
         calls.append(frame)
         return build_features(frame, config)
 
-    monkeypatch.setattr(api_app, "build_features", spy)
+    monkeypatch.setattr(transformers, "build_features", spy)
     payload = {
         "instances": [
             {

@@ -58,6 +58,14 @@ jobs:
           docker run --rm --entrypoint id flight-delay-training:dev \
             | grep "uid=10001(trainer)"
 
+      - name: Create a smoke model
+        run: |
+          mkdir -p models reports
+          chmod 777 models reports
+          docker compose -f docker/docker-compose.yml run \
+            --rm -T --no-deps --entrypoint python training \
+            -m src.models.smoke --output /app/models/model.joblib
+
       - name: Start API and MLflow
         run: |
           docker compose -f docker/docker-compose.yml up -d --no-build
@@ -74,6 +82,13 @@ jobs:
 
           echo "API did not become healthy"
           exit 1
+
+      - name: Test classification
+        run: |
+          curl --fail --silent -X POST http://localhost:8000/classify \
+            -H 'Content-Type: application/json' \
+            -d '{"instances":[{"FL_DATE":"2025-05-15","OP_UNIQUE_CARRIER":"Q9","ORIGIN":"ZZZ","DEST":"LAX","CRS_DEP_TIME":900}]}' \
+            | tee /dev/stderr | grep '"classifications":\["'
 
       - name: Wait for MLflow
         run: |

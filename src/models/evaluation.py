@@ -1,6 +1,12 @@
-"""Library-independent evaluation: labels, predictions and ordered probabilities."""
+"""Sklearn metrics with bounded-memory accumulation for full split evaluation."""
 
 import numpy as np
+from sklearn.metrics import (
+    accuracy_score,
+    confusion_matrix,
+    log_loss,
+    precision_recall_fscore_support,
+)
 
 
 class EvaluationAccumulator:
@@ -46,24 +52,19 @@ class EvaluationAccumulator:
 
 
 def _summarize(matrix, total_loss, classes):
-    support = matrix.sum(axis=1)
-    predicted = matrix.sum(axis=0)
-    diagonal = matrix.diagonal()
-    precision = np.divide(
-        diagonal, predicted, out=np.zeros(len(classes)), where=predicted > 0
-    )
-    recall = np.divide(diagonal, support, out=np.zeros(len(classes)), where=support > 0)
-    f1 = np.divide(
-        2 * precision * recall,
-        precision + recall,
-        out=np.zeros(len(classes)),
-        where=precision + recall > 0,
+    # A weighted class-pair table reproduces all classification counts without
+    # retaining individual predictions across evaluation batches.
+    labels = np.repeat(classes, len(classes))
+    predictions = np.tile(classes, len(classes))
+    weights = matrix.ravel()
+    precision, recall, f1, support = precision_recall_fscore_support(
+        labels, predictions, labels=classes, sample_weight=weights, zero_division=0
     )
     return {
         "support": int(support.sum()),
         "class_order": list(classes),
         "macro_f1": float(f1.mean()),
-        "accuracy": float(diagonal.sum() / support.sum()),
+        "accuracy": float(accuracy_score(labels, predictions, sample_weight=weights)),
         "balanced_accuracy": float(recall[support > 0].mean()),
         "log_loss": float(total_loss / support.sum()),
         "per_class": {
@@ -94,13 +95,10 @@ def evaluate(labels, predictions, probabilities, class_order, metadata=None):
         or not np.allclose(proba.sum(axis=1), 1)
     ):
         raise ValueError("Invalid probabilities")
-    matrix = np.array(
-        [[np.sum((y == a) & (pred == b)) for b in classes] for a in classes]
-    )
-    indices = np.array([classes.index(v) for v in y])
-    loss = -np.log(
-        np.clip(proba[np.arange(len(y)), indices], np.finfo(float).eps, 1)
-    ).sum()
+    matrix = confusion_matrix(y, pred, labels=classes)
+    # sklearn expects probability columns in sorted label order.
+    order = np.argsort(classes)
+    loss = log_loss(y, proba[:, order], labels=sorted(classes), normalize=False)
     result = _summarize(matrix, loss, classes)
     if metadata is not None:
         if len(metadata) != len(y):

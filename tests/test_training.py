@@ -284,9 +284,12 @@ def test_runner_uses_model_contract(environment, tmp_path, monkeypatch):
 
     instances = []
 
-    class TestModel:
+    from sklearn.base import BaseEstimator, ClassifierMixin
+
+    class TestModel(ClassifierMixin, BaseEstimator):
         def fit(self, X, y):
             self.train_days = set(X.FL_DATE)
+            self.classes_ = np.array(CLASSES)
             self.priors = np.array([np.mean(y == c) for c in CLASSES])
             instances.append(self)
             return self
@@ -600,6 +603,46 @@ def test_streaming_evaluation_equals_integral():
     assert result["macro_f1"] == expected["macro_f1"]
     assert result["log_loss"] == pytest.approx(expected["log_loss"])
     assert result["subgroups"]["ORIGIN"]["X"]["support"] == 3
+
+
+def test_day_folds_match_sklearn_with_uneven_flight_counts():
+    from sklearn.model_selection import TimeSeriesSplit
+
+    days = pd.date_range("2023-01-01", periods=11)
+    X = pd.DataFrame({"FL_DATE": np.repeat(days, np.arange(1, 12))})
+    for (a, b), (train, validation) in zip(
+        expanding_folds(X, 3), TimeSeriesSplit(n_splits=3).split(days)
+    ):
+        assert set(X.iloc[a].FL_DATE) == set(days[train])
+        assert set(X.iloc[b].FL_DATE) == set(days[validation])
+        assert X.iloc[a].FL_DATE.max() < X.iloc[b].FL_DATE.min()
+
+
+def test_metrics_preserve_probability_order_and_missing_batch_classes():
+    from sklearn.metrics import log_loss
+    from src.models.evaluation import EvaluationAccumulator
+
+    classes = ["c", "a", "b"]
+    y = np.array(["a", "c", "a", "b"])
+    probabilities = np.array(
+        [[0.1, 0.8, 0.1], [0.6, 0.2, 0.2], [0.2, 0.3, 0.5], [0.1, 0.1, 0.8]]
+    )
+    pred = np.asarray(classes)[probabilities.argmax(axis=1)]
+    accumulator = EvaluationAccumulator(classes)
+    for index in range(len(y)):
+        accumulator.update(
+            y[index : index + 1],
+            pred[index : index + 1],
+            probabilities[index : index + 1],
+        )
+    report = accumulator.result()
+    assert report["log_loss"] == pytest.approx(
+        log_loss(y, probabilities[:, [1, 2, 0]], labels=["a", "b", "c"])
+    )
+    assert (
+        report["confusion_matrix"]
+        == evaluate(y, pred, probabilities, classes)["confusion_matrix"]
+    )
 
 
 def test_effective_config_hash_once_and_status(environment, tmp_path, monkeypatch):

@@ -27,7 +27,7 @@ from src.models.transformers import (
     OperationalFeatures,
     ZScoreOutliers,
 )
-from tests.test_training import environment as training_environment
+from tests.test_training import environment as training_environment, prepared
 
 environment = training_environment
 
@@ -280,7 +280,7 @@ def test_tsfresh_real_history_causal_and_serializable(records):
     np.testing.assert_allclose(model.predict_proba(X), joblib.load(b).predict_proba(X))
 
 
-def test_ablations_one_family_and_sequential_propagation():
+def test_ablations_one_family_and_sequential_propagation(environment):
     reference = modular()
     specs = ablations(
         {
@@ -290,18 +290,9 @@ def test_ablations_one_family_and_sequential_propagation():
     )
     assert specs[1]["features"] == reference["features"]
     assert specs[2]["scaling"] == reference["scaling"]
-    assert reference == modular()
-    observed = []
-
-    def score(spec):
-        observed.append(copy.deepcopy(spec))
-        value = (
-            int(spec["scaling"] == "robust")
-            + int(spec["features"].get("selection", {}).get("method") == "kbest")
-            + int(spec["params"].get("C") == 2)
-        )
-        return {"cv_macro_f1": value / 4, "cv_log_loss": 1.0 / (value + 1), "folds": []}
-
+    _, _, preprocessing, _ = environment
+    X, y, _, _ = prepared(environment)
+    folds = list(experiments.expanding_folds(X, 2))
     history = []
     best, _ = sequential(
         reference,
@@ -312,19 +303,21 @@ def test_ablations_one_family_and_sequential_propagation():
                 "B": {"selection": [{"method": "kbest", "k": 5}]},
                 "C": {"params.C": [2]},
             },
-            "stages": ["A", "B", "C"],
         },
-        score,
+        preprocessing,
+        X,
+        y,
+        folds,
         42,
+        1,
         history.append,
     )
-    assert best["scaling"] == "robust"
-    assert (
-        best["features"]["selection"]["method"] == "kbest" and best["params"]["C"] == 2
-    )
-    assert "C" not in reference["params"]
-    assert len(history) == 6 and len(observed) == 4
-    assert all("mask" not in record["config"] for record in history)
+    assert reference == modular()
+    assert len(history) == 6
+    for previous, incoming in [(history[0:2], history[2]), (history[2:4], history[4])]:
+        winner = min(previous, key=lambda r: (-r["cv_macro_f1"], r["cv_log_loss"]))
+        assert incoming["config"] == winner["config"]
+    assert best in [r["config"] for r in history[-2:]]
 
 
 @pytest.mark.parametrize("mode", ["ablations", "sequential"])
@@ -465,7 +458,9 @@ def test_history_projects_and_aligns_after_filtering(environment, tmp_path):
 
 
 @pytest.mark.parametrize("stage", ["A", "B", "C"])
-def test_isolated_stages_deterministic_and_log_loss_tie_break(stage):
+def test_isolated_stages_deterministic_and_log_loss_tie_break(stage, environment):
+    from src.models.search import rank
+
     reference = modular()
     settings = {
         "stages": [stage],
@@ -476,16 +471,21 @@ def test_isolated_stages_deterministic_and_log_loss_tie_break(stage):
             "C": {"params.C": [2]},
         },
     }
-
-    def score(spec):
-        changed = spec != reference
-        return {"cv_macro_f1": 0.3, "cv_log_loss": 0.5 if changed else 1.0, "folds": []}
-
+    _, _, preprocessing, _ = environment
+    X, y, _, _ = prepared(environment)
+    folds = list(experiments.expanding_folds(X, 2))
     a, b = [], []
-    first = sequential(reference, settings, score, 42, a.append)
-    second = sequential(reference, settings, score, 42, b.append)
-    assert first == second and a == b
-    assert first[1]["cv_log_loss"] == 0.5
+    first = sequential(reference, settings, preprocessing, X, y, folds, 42, 1, a.append)
+    second = sequential(
+        reference, settings, preprocessing, X, y, folds, 42, 1, b.append
+    )
+    assert first[0] == second[0]
+    assert [(r["config"], r["cv_macro_f1"], r["cv_log_loss"]) for r in a] == [
+        (r["config"], r["cv_macro_f1"], r["cv_log_loss"]) for r in b
+    ]
+    assert rank({"cv_macro_f1": 0.3, "cv_log_loss": 0.5}) < rank(
+        {"cv_macro_f1": 0.3, "cv_log_loss": 1.0}
+    )
 
 
 def test_cli_training_only_overlay(environment, tmp_path):
@@ -526,29 +526,61 @@ def test_cli_training_only_overlay(environment, tmp_path):
         main(["--config", str(path), "--experiment-config", str(overlay)])
 
 
-def test_invalid_search_candidate_is_recorded_without_losing_reference():
+def test_invalid_search_candidate_is_recorded_without_losing_reference(environment):
     reference = modular()
     logs = []
-
-    def score(spec):
-        if spec != reference:
-            raise ValueError("invalid native selector configuration")
-        return {"cv_macro_f1": 0.3, "cv_log_loss": 0.8, "folds": []}
-
+    _, _, preprocessing, _ = environment
+    X, y, _, _ = prepared(environment)
+    folds = list(experiments.expanding_folds(X, 2))
     best, result = sequential(
         reference,
         {
             "stages": ["B"],
             "budget": 1,
-            "spaces": {"B": {"selection": [{"method": "kbest", "k": 999}]}},
+            "spaces": {"B": {"selection": [{"method": "kbest", "k": -1}]}},
         },
-        score,
+        preprocessing,
+        X,
+        y,
+        folds,
         42,
+        1,
         logs.append,
     )
-    assert best == reference and result["cv_macro_f1"] == 0.3
+    assert best == reference and np.isfinite(result["cv_macro_f1"])
     assert logs[-1]["state"] == "failed"
-    assert logs[-1]["config"]["features"]["selection"]["k"] == 999
+    assert logs[-1]["config"]["features"]["selection"]["k"] == -1
+
+
+def test_search_mixes_resampling_and_class_weights(environment):
+    _, _, preprocessing, _ = environment
+    X, y, _, _ = prepared(environment)
+    logs = []
+    sequential(
+        modular(),
+        {
+            "stages": ["C"],
+            "budget": 3,
+            "spaces": {
+                "C": {
+                    "imbalance": [
+                        {"method": "over"},
+                        {"method": "under"},
+                        {"method": "weights", "class_weight": "balanced"},
+                    ]
+                }
+            },
+        },
+        preprocessing,
+        X,
+        y,
+        list(experiments.expanding_folds(X, 2)),
+        42,
+        1,
+        logs.append,
+    )
+    assert len(logs) == 4
+    assert all(r["state"] == "completed" for r in logs)
 
 
 def test_single_encoded_artifact_accepts_api_contract(records, tmp_path):

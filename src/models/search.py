@@ -1,11 +1,14 @@
-"""Configuration generation only; all fitting/CV remains in experiments.py.
-
-Sequential A/B/C uses sklearn ParameterSampler, never validation or a fitted mask.
-"""
+"""YAML search spaces and staged native GridSearchCV on training folds."""
 
 import copy
 
-from sklearn.model_selection import ParameterGrid, ParameterSampler
+import numpy as np
+from sklearn.model_selection import ParameterGrid, ParameterSampler, GridSearchCV
+from sklearn.metrics import f1_score, make_scorer
+from threadpoolctl import threadpool_limits
+
+from src.data.preprocessor import CLASSES
+from src.models.factory import create_model
 
 
 def apply_option(reference, family, value):
@@ -112,7 +115,7 @@ def _default_spaces(model):
     }
 
 
-def sequential(reference, settings, score, seed, record):
+def sequential(reference, settings, preprocessing, X, y, folds, seed, threads, record):
     """Native random candidates per stage; propagate configurations, never models."""
     current = copy.deepcopy(reference)
     stages = settings.get("stages", ["A", "B", "C"])
@@ -154,56 +157,96 @@ def sequential(reference, settings, score, seed, record):
         budget = budget.get(stage, 10) if isinstance(budget, dict) else budget
         if not isinstance(budget, int) or budget < 1:
             raise ValueError("Search budget must be a positive integer")
-        if chosen_score is None:
-            chosen_score = score(current)
-        best = current
-        record(
-            {
-                "model": model,
-                "stage": stage,
-                "candidate": "reference",
-                "state": "completed",
-                "config": copy.deepcopy(current),
-                **chosen_score,
-            }
-        )
+        # Translate the YAML alternatives once. SearchCV receives native pipeline
+        # step parameters; correlated options (e.g. engineering + column routing)
+        # stay together in each parameter dictionary.
+        candidates = [copy.deepcopy(current)]
         count = min(budget, len(ParameterGrid(space)))
-        for index, parameters in enumerate(
-            ParameterSampler(space, n_iter=count, random_state=seed)
-        ):
+        for parameters in ParameterSampler(space, n_iter=count, random_state=seed):
             candidate = copy.deepcopy(current)
-            # Every candidate in a stage starts from the same incoming configuration.
-            # current is only updated after all stage candidates have been evaluated.
             for family, value in parameters.items():
                 candidate = apply_option(candidate, family, value)
-            try:
-                result = score(candidate)
-            except Exception as error:
+            candidates.append(candidate)
+        distributions = []
+        base_pipeline = None
+        for candidate in candidates:
+            pipeline, _ = create_model(candidate, preprocessing, seed, threads, CLASSES)
+            parameters = {name: [step] for name, step in pipeline.steps}
+            distributions.append(parameters)
+            # An imbalanced-learn pipeline also accepts passthrough sampling;
+            # a sklearn pipeline cannot host a fit_resample-only step.
+            if (
+                base_pipeline is None
+                or pipeline.named_steps["sampling"] != "passthrough"
+            ):
+                base_pipeline = pipeline
+        # Include the incoming reference, so at least one valid candidate remains
+        # even if every random alternative fails. sklearn handles cloning and CV.
+        search = GridSearchCV(
+            base_pipeline,
+            distributions,
+            scoring={
+                "macro_f1": make_scorer(
+                    f1_score,
+                    labels=sorted(CLASSES),
+                    average="macro",
+                    zero_division=0,
+                    pos_label=None,
+                ),
+                "neg_log_loss": "neg_log_loss",
+            },
+            cv=folds,
+            refit=False,
+            n_jobs=1,
+            error_score=np.nan,
+        )
+        with threadpool_limits(limits=threads):
+            search.fit(X, y)
+        cv = search.cv_results_
+        evaluations = []
+        for index, params in enumerate(cv["params"]):
+            candidate = candidates[index]
+            f1 = float(cv["mean_test_macro_f1"][index])
+            loss = float(-cv["mean_test_neg_log_loss"][index])
+            entry = {
+                "model": model,
+                "stage": stage,
+                "candidate": "reference" if index == 0 else index - 1,
+                "config": copy.deepcopy(candidate),
+            }
+            if not np.isfinite([f1, loss]).all():
                 record(
                     {
-                        "model": model,
-                        "stage": stage,
-                        "candidate": index,
+                        **entry,
                         "state": "failed",
-                        "config": candidate,
-                        "error": str(error),
+                        "error": "Nonfinite SearchCV scores; see sklearn fit warnings",
                     }
                 )
-                if not isinstance(error, (ValueError, TypeError)):
-                    raise
                 continue
-            record(
-                {
-                    "model": model,
-                    "stage": stage,
-                    "candidate": index,
-                    "state": "completed",
-                    "config": copy.deepcopy(candidate),
-                    **result,
-                }
-            )
-            if rank(result) < rank(chosen_score):
-                chosen_score, best = result, candidate
-        # Keep the explicit incoming reference if every sampled configuration loses.
-        current = best
+            result = {
+                "cv_macro_f1": f1,
+                "cv_log_loss": loss,
+                "mean_fit_seconds": float(cv["mean_fit_time"][index]),
+                "folds": [
+                    {
+                        "fold": fold,
+                        "train_rows": len(a),
+                        "validation_rows": len(b),
+                        "train_end": str(X.iloc[a].FL_DATE.max()),
+                        "validation_start": str(X.iloc[b].FL_DATE.min()),
+                        "metrics": {
+                            "macro_f1": float(cv[f"split{fold}_test_macro_f1"][index]),
+                            "log_loss": float(
+                                -cv[f"split{fold}_test_neg_log_loss"][index]
+                            ),
+                        },
+                    }
+                    for fold, (a, b) in enumerate(folds)
+                ],
+            }
+            record({**entry, "state": "completed", **result})
+            evaluations.append((candidate, result))
+        if not evaluations:
+            raise ValueError(f"No valid search candidates for stage {stage}")
+        current, chosen_score = min(evaluations, key=lambda item: rank(item[1]))
     return current, chosen_score

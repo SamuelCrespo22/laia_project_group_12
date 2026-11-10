@@ -635,3 +635,34 @@ selection and ablation differences. The 186-test local suite and Black/flake8
 checks passed at the acceptance review. Local verification does not establish
 hosted CI, an issue-linked PR, another member's review or merge; those remain
 pending/not verified, as does actual endpoint loading in Issue 2.3.
+
+
+### Sklearn training refactor (10 November 2026)
+
+The current implementation uses `TimeSeriesSplit` over sorted unique flight days,
+then maps its indices back to flight rows. `cv_splits` must be at least two.
+`sklearn.model_selection.cross_validate` clones and fits the pipeline for baseline
+and ablation CV. The historical fold boundaries and scores above were produced
+by the earlier `numpy.array_split` implementation and have not been rerun; new
+fold boundaries can differ when the day count is not divisible by splits + 1.
+
+Sequential A/B/C keeps only stage orchestration and YAML translation in project
+code. `ParameterSampler` draws each stage's budget of configurations;
+`GridSearchCV` evaluates those candidates together with the incoming reference,
+using the same day-level folds, Macro F1 and negative log loss. Including the
+reference preserves it if alternatives fail or lose. Only configurations pass
+between stages. A fresh `cross_validate` call collects the selected candidate's
+full fold/subgroup reports. Search timings are mean fit times from `cv_results_`,
+not individual fold timings. Fixed validation and test never enter the search.
+
+Classification metrics use `sklearn.metrics`. The project retains only input
+checks, subgroup iteration and a bounded-memory accumulator: confusion matrices
+and unnormalized log losses are summed across batches. A weighted class-pair
+table lets sklearn compute precision/recall/F1 from the accumulated confusion
+matrix without storing all predictions. This is not an average of batch F1s.
+
+`factory.py` separates column resolution, numeric/binned routing, the existing
+categorical branch and optional resampling into small builders. It still returns
+native sklearn/imbalanced-learn pipelines. Existing encoder behavior is unchanged.
+`training_frame` remains outside the inference pipeline because it filters rows
+and builds y; inference transformations remain inside the serialized pipeline.

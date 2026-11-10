@@ -7,6 +7,10 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from sklearn.model_selection import (
+    TimeSeriesSplit,
+    cross_validate as sklearn_cross_validate,
+)
 
 from src.data.preprocessor import (
     CLASSES,
@@ -23,15 +27,13 @@ from src.models.search import ablations, sequential
 def expanding_folds(X, n_splits):
     """Expanding windows over unique days, never split a day across partitions."""
     days = np.array(sorted(pd.to_datetime(X["FL_DATE"]).dt.normalize().unique()))
-    if n_splits < 1 or len(days) < n_splits + 1:
+    if n_splits < 2 or len(days) < n_splits + 1:
         raise ValueError("Insufficient unique training days for temporal CV")
-    blocks = np.array_split(days, n_splits + 1)
     dates = pd.to_datetime(X["FL_DATE"]).dt.normalize()
-    for index in range(1, len(blocks)):
-        train_days = np.concatenate(blocks[:index])
+    for train, validation in TimeSeriesSplit(n_splits=n_splits).split(days):
         yield (
-            np.flatnonzero(dates.isin(train_days)),
-            np.flatnonzero(dates.isin(blocks[index])),
+            np.flatnonzero(dates.isin(days[train])),
+            np.flatnonzero(dates.isin(days[validation])),
         )
 
 
@@ -44,7 +46,7 @@ def _fit(experiment, preprocessing, seed, threads, X, y):
         model.fit(X, y)
         duration = time.perf_counter() - start
         pools = threadpool_info()
-    return model, order, duration, pools
+    return model, tuple(model.classes_), duration, pools
 
 
 def _evaluate(model, order, X, y, metadata, threads=1):
@@ -59,26 +61,42 @@ def _evaluate(model, order, X, y, metadata, threads=1):
 
 def cross_validate(experiment, preprocessing, seed, threads, X, y, metadata, folds):
     """The single CV implementation used by baselines, ablations and A/B/C."""
-    results = []
-    for number, (a, b) in enumerate(folds):
-        model, order, duration, pools = _fit(
-            experiment, preprocessing, seed, threads, X.iloc[a], y.iloc[a]
-        )
+    for a, _ in folds:
+        if set(y.iloc[a]) != set(CLASSES):
+            raise ValueError("Every training partition must contain all target classes")
+    model, _ = create_model(experiment, preprocessing, seed, threads, CLASSES)
+    reports = []
+
+    def scoring(estimator, rows, labels):
         metrics = _evaluate(
-            model, order, X.iloc[b], y.iloc[b], metadata.iloc[b], threads
+            estimator,
+            estimator.classes_,
+            rows,
+            labels,
+            metadata.loc[rows.index],
+            threads,
         )
-        results.append(
-            {
-                "fold": number,
-                "train_rows": len(a),
-                "validation_rows": len(b),
-                "train_end": str(X.iloc[a].FL_DATE.max()),
-                "validation_start": str(X.iloc[b].FL_DATE.min()),
-                "fit_seconds": duration,
-                "native_pools": pools,
-                "metrics": metrics,
-            }
+        reports.append(metrics)
+        return {"macro_f1": metrics["macro_f1"], "neg_log_loss": -metrics["log_loss"]}
+
+    with threadpool_limits(limits=threads):
+        scores = sklearn_cross_validate(
+            model, X, y, cv=folds, scoring=scoring, n_jobs=1, error_score="raise"
         )
+        pools = threadpool_info()
+    results = [
+        {
+            "fold": number,
+            "train_rows": len(a),
+            "validation_rows": len(b),
+            "train_end": str(X.iloc[a].FL_DATE.max()),
+            "validation_start": str(X.iloc[b].FL_DATE.min()),
+            "fit_seconds": float(scores["fit_time"][number]),
+            "native_pools": pools,
+            "metrics": reports[number],
+        }
+        for number, (a, b) in enumerate(folds)
+    ]
     return {
         "cv_macro_f1": float(np.mean([f["metrics"]["macro_f1"] for f in results])),
         "cv_log_loss": float(np.mean([f["metrics"]["log_loss"] for f in results])),
@@ -167,10 +185,20 @@ def _run(config, config_path, preprocessing, output_dir, snapshot, final_test=Fa
         for name, reference in references.items():
             if reference["model"] != name:
                 raise ValueError("Search reference model does not match its key")
-            best, result = sequential(reference, search_settings, score, seed, record)
+            best, _ = sequential(
+                reference,
+                search_settings,
+                preprocessing,
+                X,
+                y,
+                folds,
+                seed,
+                threads,
+                record,
+            )
             best["name"] = name + "_selected"
             experiments.append(best)
-            cache[best["name"]] = result
+            cache[best["name"]] = score(best)
     else:
         raise ValueError(f"Unknown experiment mode: {mode}")
     names = [e["name"] for e in experiments]

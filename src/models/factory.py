@@ -83,10 +83,8 @@ def _outliers(options, preprocessing, categorical):
     raise ValueError(f"Unknown outlier method: {method}")
 
 
-def _column_transformer(config, preprocessing, outliers, tsfresh, seed):
-    """Route each feature once: numeric, binned numeric, or categorical."""
-    options = config.get("features", {})
-    categorical = options.get("mode", "minimal_numeric") == "modular"
+def _numeric_columns(options, preprocessing, outliers, tsfresh):
+    """Resolve and validate the columns produced by the configured transforms."""
     columns = list(
         options.get(
             "columns",
@@ -127,6 +125,13 @@ def _column_transformer(config, preprocessing, outliers, tsfresh, seed):
         columns += [c + "_route_" + outliers.action for c in outliers.columns]
     if tsfresh != "passthrough":
         columns += ["tsfresh_" + name for name in tsfresh.statistics]
+    return columns
+
+
+def _column_transformer(config, preprocessing, outliers, tsfresh, seed):
+    """Route numeric, binned and categorical features to native sklearn branches."""
+    options = config.get("features", {})
+    columns = _numeric_columns(options, preprocessing, outliers, tsfresh)
     binning = options.get("binning", {})
     binned = list(binning.get("columns", [])) if binning.get("enabled") else []
     if len(set(binned)) != len(binned) or not set(binned).issubset(columns):
@@ -150,24 +155,35 @@ def _column_transformer(config, preprocessing, outliers, tsfresh, seed):
             )
         )
         branches.append(("binned", Pipeline(branch), binned))
-    encoding = options.get("encoding", "onehot" if categorical else "passthrough")
+    categorical = _categorical_branch(options, preprocessing)
+    if categorical is not None:
+        branches.append(categorical)
+    return ColumnTransformer(branches, remainder="drop")
+
+
+def _categorical_branch(options, preprocessing):
+    modular = options.get("mode", "minimal_numeric") == "modular"
+    encoding = options.get("encoding", "onehot" if modular else "passthrough")
     if encoding not in ("onehot", "passthrough"):
         raise ValueError(f"Unknown encoding: {encoding}")
-    if not categorical and encoding != "passthrough":
+    if encoding == "passthrough":
+        return None
+    if not modular:
         raise ValueError(
             "Use modular mode for categorical encoding; minimal_numeric stays numeric"
         )
-    if encoding == "onehot":
-        categories = options.get(
-            "categorical_columns", ["OP_UNIQUE_CARRIER", "ORIGIN", "DEST"]
-        )
-        if any(
-            c not in preprocessing.feature_allowlist
-            or SPECS[c].kind not in ("code", "text")
-            for c in categories
-        ):
-            raise ValueError("Encoding requires allowed categorical columns")
-        branch = Pipeline(
+    categories = options.get(
+        "categorical_columns", ["OP_UNIQUE_CARRIER", "ORIGIN", "DEST"]
+    )
+    if any(
+        c not in preprocessing.feature_allowlist
+        or SPECS[c].kind not in ("code", "text")
+        for c in categories
+    ):
+        raise ValueError("Encoding requires allowed categorical columns")
+    return (
+        "categorical",
+        Pipeline(
             [
                 (
                     "imputer",
@@ -180,9 +196,9 @@ def _column_transformer(config, preprocessing, outliers, tsfresh, seed):
                 ),
                 ("encoder", OneHotEncoder(handle_unknown="ignore", sparse_output=True)),
             ]
-        )
-        branches.append(("categorical", branch, list(categories)))
-    return ColumnTransformer(branches, remainder="drop")
+        ),
+        list(categories),
+    )
 
 
 def _selection(options):
@@ -213,6 +229,26 @@ def create_estimator(name, params, seed, threads):
     raise ValueError(f"Unknown model: {name}")
 
 
+def _sampling(sampling, seed):
+    """Use imbalanced-learn only when fit-time resampling is requested."""
+    method = sampling.get("method", "passthrough")
+    sampler = "passthrough"
+    pipeline_type = Pipeline
+    if method != "passthrough":
+        from imblearn.pipeline import Pipeline as SamplingPipeline
+        from imblearn.over_sampling import RandomOverSampler
+        from imblearn.under_sampling import RandomUnderSampler
+
+        samplers = {"over": RandomOverSampler, "under": RandomUnderSampler}
+        if method not in samplers:
+            raise ValueError(f"Unknown sampling method: {method}")
+        sampler = samplers[method](
+            random_state=seed, sampling_strategy=sampling.get("strategy", "auto")
+        )
+        pipeline_type = SamplingPipeline
+    return pipeline_type, sampler
+
+
 def build_pipeline(estimator, config, preprocessing, seed=42):
     """Compose preprocessing and an already-created estimator; never inspect it.
 
@@ -240,22 +276,7 @@ def build_pipeline(estimator, config, preprocessing, seed=42):
     )
     outliers = _outliers(options.get("outliers", {}), preprocessing, mode == "modular")
     engineering = options.get("engineering", {})
-    sampling = config.get("sampling", {})
-    method = sampling.get("method", "passthrough")
-    sampler = "passthrough"
-    pipeline_type = Pipeline
-    if method != "passthrough":
-        from imblearn.pipeline import Pipeline as SamplingPipeline
-        from imblearn.over_sampling import RandomOverSampler
-        from imblearn.under_sampling import RandomUnderSampler
-
-        samplers = {"over": RandomOverSampler, "under": RandomUnderSampler}
-        if method not in samplers:
-            raise ValueError(f"Unknown sampling method: {method}")
-        sampler = samplers[method](
-            random_state=seed, sampling_strategy=sampling.get("strategy", "auto")
-        )
-        pipeline_type = SamplingPipeline
+    pipeline_type, sampler = _sampling(config.get("sampling", {}), seed)
     engineering = (
         OperationalFeatures(**engineering)
         if any(engineering.values())

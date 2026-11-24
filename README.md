@@ -74,23 +74,36 @@ docker compose -f docker/docker-compose.yml up --build   # API and MLflow
 ## API
 
 `POST /classify` receives flights with the BTS column names and returns one
-class per flight, in input order. Required fields are `FL_DATE`,
-`OP_UNIQUE_CARRIER`, `ORIGIN`, `DEST` and `CRS_DEP_TIME`. Unknown fields are
-ignored.
+class per flight, in input order. This is the contract of the evaluation
+leaderboard:
 
 ```json
-{"instances": [{"FL_DATE": "2025-05-15", "OP_UNIQUE_CARRIER": "AA", "ORIGIN": "JFK", "DEST": "LAX", "CRS_DEP_TIME": 900}]}
+{"request_id": "abc", "mode": "live", "instances": [{"FL_DATE": "2024-02-01", "OP_UNIQUE_CARRIER": "AA", "ORIGIN": "JFK", "DEST": "LAX", "CRS_DEP_TIME": 900}]}
 ```
 
 ```json
 {"classifications": ["on_time"]}
 ```
 
+Each instance is validated on its own, so one bad record never fails the batch.
+Unknown fields are ignored, an invalid value is treated as missing, and a flight
+without a usable `FL_DATE`, `OP_UNIQUE_CARRIER`, `ORIGIN`, `DEST` or
+`CRS_DEP_TIME` gets `serving.fallback_class` (`on_time`). If the model fails on
+the batch, it predicts flight by flight.
+
+`POST /labels` receives the true outcomes of a scored batch (`request_id`,
+`mode`, `labels`, `outcomes`) and answers `{"status": "received"}`.
+
+Both endpoints append each request to `logs/traffic/<mode>/` (`TRAFFIC_DIR`), as
+`predictions-<date>.jsonl` and `labels-<date>.jsonl`. `mode` is `live`,
+`sandbox` or `unknown`, so sandbox and manual traffic stay out of live
+monitoring. Inputs are stored only for live traffic.
+
 | Status | Meaning |
 | :--- | :--- |
-| `200` | Predictions returned |
-| `400` | Malformed JSON, empty `instances` or a record that violates the data contract |
-| `500` | Inference failure |
+| `200` | Predictions returned, or labels stored |
+| `400` | Malformed JSON, missing or empty `instances`, or a body that is not an object |
+| `500` | `/labels` could not store the delivery |
 
 `GET /health` reports the service status and the loaded model. The service does
 not start without a model. `MODEL_PATH` selects the file, by default

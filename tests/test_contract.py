@@ -266,9 +266,10 @@ def test_api_accepts_record_with_only_required_fields():
     assert len(response.json()["classifications"]) == 2
 
 
-def test_api_error_names_instance_and_field():
+def test_api_gives_a_record_violating_the_contract_the_fallback_class():
     bad = {k: v for k, v in VALID.items() if k != "ORIGIN"}
-    response = client.post("/classify", json={"instances": [VALID, bad]})
-    assert response.status_code == 400
-    locations = [error["loc"] for error in response.json()["detail"]]
-    assert ["body", "instances", 1, "ORIGIN"] in locations
+    response = client.post(
+        "/classify", json={"instances": [{**VALID, "DISTANCE": 2800}, bad]}
+    )
+    assert response.status_code == 200
+    assert response.json() == {"classifications": ["severe_delay", "on_time"]}

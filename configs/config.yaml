@@ -195,6 +195,11 @@ serving:
   # MODEL_PATH, MODEL_NAME and MODEL_VERSION override these at deployment.
   model_path: "models/model.joblib"
   model_name: "flight-delay-severity"
+  # Class of an instance that cannot be classified (e.g. a required field is
+  # null), so it never fails the batch. on_time is the majority class.
+  fallback_class: "on_time"
+  # /classify and /labels traffic, one folder per mode. TRAFFIC_DIR overrides it.
+  traffic_dir: "logs/traffic"
   host: "0.0.0.0"
   port: 8000
 

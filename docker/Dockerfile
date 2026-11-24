@@ -22,8 +22,9 @@ RUN pip install --no-cache-dir \
 COPY src/ /app/src/
 COPY configs/ /app/configs/
 
-# Create a non-root user
+# Create a non-root user, who owns the /classify and /labels traffic folder
 RUN useradd --create-home --uid 10001 appuser \
+    && mkdir -p /app/logs/traffic \
     && chown -R appuser:appuser /app
 
 USER appuser

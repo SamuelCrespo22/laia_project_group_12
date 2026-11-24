@@ -26,22 +26,26 @@ and column rules are in `src/data/contract.py`.
 the leakage checks derive from it, so training and serving agree on what a valid
 flight is. It is a Python module because Pydantic models are generated from it.
 
-Required request fields are `FL_DATE`, `OP_UNIQUE_CARRIER`, `ORIGIN`, `DEST` and
+Required fields are `FL_DATE`, `OP_UNIQUE_CARRIER`, `ORIGIN`, `DEST` and
 `CRS_DEP_TIME`. They identify a scheduled flight and include the monitoring
-subgroups. Requiring more would risk rejecting evaluation records.
+subgroups. `FlightRecord` rejects a record without them.
+
+`/classify` validates each instance on its own (`src/api/inference.py`), because
+the leaderboard scores a batch as a whole and needs one class per instance:
 
 | Situation | Result |
 | :--- | :--- |
-| Required field missing, null, wrong type or out of range | Rejected, naming the instance and field |
+| Required field missing, null, wrong type or out of range | `serving.fallback_class` for that flight |
+| Instance that is not a JSON object | `serving.fallback_class` for that instance |
 | Optional field missing | Null |
-| Optional field of the wrong type | Rejected |
-| Optional field out of range | Null and a logged warning |
+| Optional field of the wrong type or out of range | Null; one warning per batch |
 | Unknown or post-departure field | Ignored |
 | Unseen airline or airport | Accepted, handled by the encoders |
+| Model fails on the batch | Predicted flight by flight; failures get the fallback |
 
-A wrong type signals a malformed client. An out-of-range optional value loses only
-that value, so it should not discard the batch. Non-finite numbers count as missing.
-Every rejected request returns 400, so clients handle one code for invalid input.
+`on_time` is the fallback because it is the majority class (79%). Non-finite
+numbers count as missing. Only a malformed request (broken JSON, no `instances`
+list) returns 400.
 
 `TAIL_NUM` counts as post-departure because aircraft swaps happen up to departure.
 `CANCELLED` and `DIVERTED` are outcomes, used only for filtering.

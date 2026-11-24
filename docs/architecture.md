@@ -6,7 +6,7 @@ Developer -> GitHub -> GitHub Actions (tests, image builds, GHCR)
              +---------------+---------------+
              v                               v
          DEI VM 1                        DEI VM 2
-  MLflow tracking and registry -model-> FastAPI (/classify, /health)
+  MLflow tracking and registry -model-> FastAPI (/classify, /labels, /health)
   DVC remote (bonus)                    Prometheus and Grafana
 ```
 
@@ -26,7 +26,8 @@ automated deployment needs self-hosted GitHub Actions runners on them.
 | Containers | `docker/` | Done, without a trained model |
 | Training | `src/models/train.py` | Done: numeric baseline on a sample |
 | Experiment tracking | `src/models/tracking.py` | Done: runs, registry and aliases |
-| Inference | `src/api/app.py` | Done: loads the pipeline from `MODEL_PATH` |
+| Inference | `src/api/app.py`, `src/api/inference.py` | Done: leaderboard `/classify` and `/labels`, one class per instance |
+| Traffic log | `src/monitoring/traffic.py` | Done: predictions and labels by mode, input for monitoring |
 | VM deployment and registration | VM 1 and VM 2 | Planned (#14, #10) |
 | Monitoring | Prometheus, Grafana, drift checks | Planned (Milestone 4) |
 

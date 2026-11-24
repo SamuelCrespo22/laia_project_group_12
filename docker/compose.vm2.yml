@@ -8,6 +8,9 @@ services:
     environment:
       MODEL_PATH: /app/models/model.joblib
       MODEL_VERSION: ${MODEL_VERSION:-unknown}
+      TRAFFIC_DIR: /app/logs/traffic
     volumes:
       - /opt/flight-delay/models:/app/models:ro
+      # /classify and /labels traffic; must be writable by UID 10001
+      - /opt/flight-delay/traffic:/app/logs/traffic
     restart: unless-stopped

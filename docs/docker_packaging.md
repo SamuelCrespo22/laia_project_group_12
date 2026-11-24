@@ -35,7 +35,14 @@ IMAGE_TAG=<commit SHA on main>
 MLFLOW_URL=http://<VM 1 address>:5000
 ```
 
-The VM needs `jq` and write access to `/opt/flight-delay/models`.
+The VM needs `jq` and write access to `/opt/flight-delay/models`. The API
+stores `/classify` and `/labels` traffic in `/opt/flight-delay/traffic`, which
+must be writable by the container user:
+
+```bash
+sudo mkdir -p /opt/flight-delay/traffic
+sudo chown 10001:10001 /opt/flight-delay/traffic
+```
 
 ```bash
 bash deploy_model.sh                 # Check once

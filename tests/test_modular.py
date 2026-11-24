@@ -587,8 +587,9 @@ def test_search_mixes_resampling_and_class_weights(environment):
 
 def test_single_encoded_artifact_accepts_api_contract(records, tmp_path):
     """Prove inference compatibility without changing/calling the placeholder API."""
+    from src.api.inference import classify
     from src.api.schemas import PredictionRequest, PredictionResponse
-    from src.data.contract import records_to_frame
+    from src.data.contract import FlightRecord, records_to_frame
     from src.models.artifacts import load_model, save_model
 
     X, y = records
@@ -612,14 +613,17 @@ def test_single_encoded_artifact_accepts_api_contract(records, tmp_path):
             },
         ]
     )
-    frame = records_to_frame(request.instances)
+    frame = records_to_frame([FlightRecord(**i) for i in request.instances])
     expected_labels, expected_proba = model.predict(frame), model.predict_proba(frame)
     path = tmp_path / "complete_encoded_pipeline.joblib"
     save_model(model, path)
     restored = load_model(path)
     np.testing.assert_array_equal(expected_labels, restored.predict(frame))
     np.testing.assert_array_equal(expected_proba, restored.predict_proba(frame))
-    response = PredictionResponse(classifications=restored.predict(frame).tolist())
+    served = classify(restored, request.instances, "on_time")
+    assert served.fallback == 0
+    assert served.classifications == expected_labels.tolist()
+    response = PredictionResponse(classifications=served.classifications)
     assert len(response.classifications) == 2
     assert order == tuple(sorted(CLASSES))
     assert set(restored.named_steps["columns"].named_transformers_) >= {

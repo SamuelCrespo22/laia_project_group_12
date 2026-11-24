@@ -306,3 +306,64 @@ def test_startup_fails_with_an_unreadable_model(tmp_path, monkeypatch):
     with pytest.raises(RuntimeError, match="Could not load model"):
         with TestClient(app):
             pass
+
+
+# Example published by the leaderboard, exactly as sent.
+LEADERBOARD_INSTANCE = {
+    "FL_DATE": "2024-01-08",
+    "YEAR": 2024,
+    "QUARTER": 1,
+    "MONTH": 1,
+    "DAY_OF_MONTH": 8,
+    "DAY_OF_WEEK": 1,
+    "OP_UNIQUE_CARRIER": "9E",
+    "OP_CARRIER_AIRLINE_ID": 20363,
+    "OP_CARRIER": "9E",
+    "TAIL_NUM": "N485PX",
+    "OP_CARRIER_FL_NUM": 4801,
+    "ORIGIN_AIRPORT_ID": 12953,
+    "ORIGIN_AIRPORT_SEQ_ID": 1295304,
+    "ORIGIN_CITY_MARKET_ID": 31703,
+    "ORIGIN": "LGA",
+    "ORIGIN_CITY_NAME": "New York, NY",
+    "ORIGIN_STATE_ABR": "NY",
+    "ORIGIN_STATE_FIPS": 36,
+    "ORIGIN_STATE_NM": "New York",
+    "ORIGIN_WAC": 22,
+    "DEST_AIRPORT_ID": 13871,
+    "DEST_AIRPORT_SEQ_ID": 1387102,
+    "DEST_CITY_MARKET_ID": 33316,
+    "DEST": "OMA",
+    "DEST_CITY_NAME": "Omaha, NE",
+    "DEST_STATE_ABR": "NE",
+    "DEST_STATE_FIPS": 31,
+    "DEST_STATE_NM": "Nebraska",
+    "DEST_WAC": 65,
+    "CRS_DEP_TIME": 856,
+    "DEP_TIME_BLK": "0800-0859",
+    "CRS_ARR_TIME": 1135,
+    "ARR_TIME_BLK": "1100-1159",
+    "CRS_ELAPSED_TIME": 219.0,
+    "DISTANCE": 1148.0,
+    "DISTANCE_GROUP": 5,
+}
+
+
+@pytest.mark.parametrize(
+    "changes",
+    [{}, {"TAIL_NUM": None}, {"CRS_DEP_TIME": 5, "DEP_TIME_BLK": "0001-0559"}],
+    ids=["as-sent", "null-tail", "hhmm-00:05"],
+)
+def test_leaderboard_instance_is_classified_without_discarding(traffic_dir, changes):
+    response = client.post(
+        "/classify",
+        json={
+            "request_id": "6f1c0a4e-5d0b-4f0e-9a52-1c5b0f6f9a11",
+            "mode": "live",
+            "instances": [{**LEADERBOARD_INSTANCE, **changes}],
+        },
+    )
+    assert response.status_code == 200
+    [entry] = stored(traffic_dir, "live", "predictions")
+    assert entry["fallback"] == 0
+    assert entry["discarded_fields"] == {}

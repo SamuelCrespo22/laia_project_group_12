@@ -19,7 +19,8 @@ baseline training, MLflow tracking and registry, inference in `/classify`, Docke
 images, CI and image publishing to GHCR.
 
 Not implemented yet: deployment of a trained model to the VMs (#14) and endpoint
-registration (#10). Monitoring is planned for Milestone 4.
+registration (#10). System monitoring with Prometheus and Grafana is in place;
+drift detection, label-based evaluation and alerts are planned for Milestone 4.
 
 ## Documentation
 
@@ -108,6 +109,12 @@ monitoring. Inputs are stored only for live traffic.
 `GET /health` reports the service status and the loaded model. The service does
 not start without a model. `MODEL_PATH` selects the file, by default
 `models/model.joblib`.
+
+`GET /metrics` serves Prometheus metrics: request rate, latency and errors per
+endpoint, and per mode the classes returned, fallbacks, discarded values, batch
+sizes and label deliveries. Prometheus scrapes it every 15 s, and Grafana shows
+it in the provisioned *Flight delay API* dashboard (port 3000). See
+[docs/docker_packaging.md](docs/docker_packaging.md#monitoring).
 
 ## CI/CD
 

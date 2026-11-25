@@ -1,0 +1,15 @@
+# Prometheus scrapes the API over the Compose network, so the API port needs
+# no extra firewall rule. Rules for alerts (Issue 4.4) will be loaded from here.
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: flight-delay-api
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["api:8000"]
+
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]

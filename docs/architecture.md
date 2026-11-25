@@ -29,7 +29,8 @@ automated deployment needs self-hosted GitHub Actions runners on them.
 | Inference | `src/api/app.py`, `src/api/inference.py` | Done: leaderboard `/classify` and `/labels`, one class per instance |
 | Traffic log | `src/monitoring/traffic.py` | Done: predictions and labels by mode, input for monitoring |
 | VM deployment and registration | VM 1 and VM 2 | Planned (#14, #10) |
-| Monitoring | Prometheus, Grafana, drift checks | Planned (Milestone 4) |
+| System monitoring | `src/monitoring/metrics.py`, `docker/monitoring/` | Done: `/metrics`, Prometheus and Grafana dashboard on VM 2 (#22) |
+| Drift, label evaluation, alerts | Prometheus rules, traffic log | Planned (Milestone 4) |
 
 ## Design rules
 
@@ -41,5 +42,9 @@ automated deployment needs self-hosted GitHub Actions runners on them.
   F1, with multiclass log loss as the secondary metric.
 - **Model promotion:** MLflow registry aliases `staging` and `champion`, which
   replace the deprecated stages. The rule is in `docs/training.md`.
-- **Monitoring:** planned for system metrics, input drift, and performance by
-  airline and origin airport once delayed labels arrive.
+- **Monitoring:** the API exposes request, latency, error and prediction
+  metrics on `/metrics`, scraped by Prometheus on VM 2 over the Compose network
+  and shown in Grafana. Metric labels take only fixed values (mode, class,
+  contract field), so requests cannot create new series. Input drift and
+  performance by airline and origin airport are planned once delayed labels
+  arrive.

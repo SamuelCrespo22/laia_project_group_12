@@ -18,6 +18,7 @@ from src.api.schemas import (
     PredictionResponse,
 )
 from src.data.preprocessor import CLASSES, DEFAULT_CONFIG_PATH
+from src.monitoring import metrics
 from src.monitoring.traffic import TrafficLog, normalize_mode, utc_now
 
 logging.basicConfig(level=logging.INFO)
@@ -56,6 +57,7 @@ async def lifespan(service: FastAPI):
     service.state.model_version = settings["version"]
     service.state.fallback_class = settings["fallback_class"]
     service.state.traffic = TrafficLog(settings["traffic_dir"])
+    metrics.set_model(settings["name"], settings["version"])
     logger.info("Loaded model %s %s", settings["name"], settings["version"])
     yield
 
@@ -69,6 +71,7 @@ app = FastAPI(
     version="0.1.0",
     lifespan=lifespan,
 )
+metrics.instrument(app)
 
 
 @app.exception_handler(RequestValidationError)
@@ -125,7 +128,15 @@ def classify_flights(
     received_at = utc_now()
     mode = normalize_mode(payload.mode)
     result = classify(app.state.model, payload.instances, app.state.fallback_class)
-    latency_ms = round((time.perf_counter() - started) * 1000, 1)
+    elapsed = time.perf_counter() - started
+    latency_ms = round(elapsed * 1000, 1)
+    metrics.observe_classification(
+        mode,
+        result.classifications,
+        result.fallback,
+        dict(result.discarded_fields),
+        elapsed,
+    )
 
     logger.info(
         "classify request_id=%s mode=%s instances=%d fallback=%d latency_ms=%s",
@@ -183,5 +194,6 @@ def receive_labels(payload: LabelsDelivery) -> LabelsReceipt:
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Could not store labels.",
         )
+    metrics.observe_labels(entry["mode"])
     logger.info("labels request_id=%s mode=%s", payload.request_id, entry["mode"])
     return LabelsReceipt(request_id=payload.request_id)

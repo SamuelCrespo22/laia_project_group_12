@@ -37,6 +37,14 @@ jobs:
       - name: Validate Docker Compose
         run: |
           docker compose -f docker/docker-compose.yml config --quiet
+          IMAGE_TAG=ci GRAFANA_ADMIN_PASSWORD=ci \
+            docker compose -f docker/compose.vm2.yml config --quiet
+
+      - name: Validate Prometheus configuration
+        run: |
+          docker run --rm --entrypoint promtool \
+            -v "$PWD/docker/monitoring:/etc/monitoring:ro" \
+            prom/prometheus:v3.1.0 check config /etc/monitoring/prometheus.yml
 
       - name: Build Serving image
         run: |
@@ -66,7 +74,7 @@ jobs:
             --rm -T --no-deps --entrypoint python training \
             -m src.models.smoke --output /app/models/model.joblib
 
-      - name: Start API and MLflow
+      - name: Start API, MLflow, Prometheus and Grafana
         run: |
           docker compose -f docker/docker-compose.yml up -d --no-build
 
@@ -89,6 +97,34 @@ jobs:
             -H 'Content-Type: application/json' \
             -d '{"instances":[{"FL_DATE":"2025-05-15","OP_UNIQUE_CARRIER":"Q9","ORIGIN":"ZZZ","DEST":"LAX","CRS_DEP_TIME":900}]}' \
             | tee /dev/stderr | grep '"classifications":\["'
+
+      - name: Check that Prometheus scrapes the API
+        run: |
+          query='http://localhost:9090/api/v1/query?query=flight_delay_predictions_total'
+          for i in $(seq 1 30); do
+            if curl --fail --silent "$query" | grep -q '"__name__":"flight_delay_predictions_total"'; then
+              echo "Prometheus scrapes the API"
+              exit 0
+            fi
+            sleep 2
+          done
+
+          echo "Prometheus has no API metrics"
+          exit 1
+
+      - name: Check Grafana provisioning
+        run: |
+          for i in $(seq 1 30); do
+            if curl --fail --silent http://localhost:3000/api/health; then
+              break
+            fi
+            sleep 2
+          done
+          curl --fail --silent -u admin:admin \
+            http://localhost:3000/api/datasources/uid/prometheus/health
+          curl --fail --silent -u admin:admin \
+            http://localhost:3000/api/dashboards/uid/flight-delay-api > /dev/null
+          echo "Grafana has the Prometheus data source and the API dashboard"
 
       - name: Wait for MLflow
         run: |

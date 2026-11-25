@@ -122,7 +122,7 @@ def test_first_run_installs_the_champion(deployment):
     assert stat.S_IMODE(deployment.model.stat().st_mode) == 0o644
     assert any("get-artifact" in c and "run_uuid=run3" in c for c in deployment.calls)
     assert deployment.docker_calls() == [
-        "docker compose -f compose.vm2.yml up -d --force-recreate"
+        "docker compose -f compose.vm2.yml up -d --force-recreate api"
     ]
 
 

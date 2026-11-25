@@ -25,11 +25,12 @@ install_cron() {
     log "Installed: $line"
 }
 
-# The container reads MODEL_VERSION from .env through Compose.
+# The container reads MODEL_VERSION from .env through Compose. Only the API is
+# recreated, so Prometheus and Grafana keep running through a deployment.
 start_api() {
     { grep -v '^MODEL_VERSION=' .env || true; echo "MODEL_VERSION=$1"; } > .env.tmp
     mv .env.tmp .env
-    docker compose -f "$COMPOSE_FILE" up -d --force-recreate
+    docker compose -f "$COMPOSE_FILE" up -d --force-recreate api
 }
 
 is_healthy() {

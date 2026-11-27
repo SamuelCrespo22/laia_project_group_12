@@ -3,7 +3,7 @@
 | Service | Definition | Runs as | Purpose |
 | :--- | :--- | :--- | :--- |
 | `api` | `docker/Dockerfile` | `appuser` (UID 10001) | FastAPI on port 8000 |
-| `mlflow` | `ghcr.io/mlflow/mlflow:v2.10.0` | Image default | Tracking server on port 5000 |
+| `mlflow` | `ghcr.io/mlflow/mlflow:v3.18.0` | Image default | Tracking server on port 5000 |
 | `training` | `docker/Dockerfile.train` | `trainer` (UID 10001) | Runs `python -m src.models.train` |
 | `prometheus` | `prom/prometheus:v3.1.0` | Image default | Scrapes `api:8000/metrics` every 15 s, port 9090 |
 | `grafana` | `grafana/grafana:11.4.0` | Image default | Dashboards, port 3000 |
@@ -99,6 +99,32 @@ version is not retried. Output is in `deploy_model.log`.
 
 To update the code, change `IMAGE_TAG` in `.env` and run
 `docker compose -f compose.vm2.yml pull` and `up -d`.
+
+## MLflow upgrades on VM 1
+
+MLflow migrates its database schema in one direction only, so upgrade a
+**copy** first. The nightly backups in `/opt/mlflow-backups/` hold
+`artifacts/` and the database as `mlflow-backup.db`; rename it to `mlflow.db`
+when restoring.
+
+1. Extract a backup to `~/mlflow-test` (database renamed to `mlflow.db`), run
+   the new image on port 5001 with `mlflow db upgrade` before `mlflow server`,
+   and from VM 2 fetch the `champion` alias and its `pipeline.joblib` from
+   port 5001. The file must match `/opt/flight-delay/models/model.joblib`.
+2. On VM 1, with the new `compose.vm1.yml`:
+
+   ```bash
+   bash ~/flight-delay/backup_mlflow.sh            # fresh backup first
+   docker compose -f compose.vm1.yml down          # never -v
+   docker compose -f compose.vm1.yml pull
+   docker compose -f compose.vm1.yml run --rm mlflow mlflow db upgrade sqlite:////mlflow/mlflow.db
+   docker compose -f compose.vm1.yml up -d
+   ```
+
+3. On VM 2, run `bash deploy_model.sh` and check `deploy_model.log`.
+
+The API on VM 2 serves its local model, so it keeps answering while MLflow is
+down. Clients must use the same MLflow major version as the server.
 
 ## Verification
 

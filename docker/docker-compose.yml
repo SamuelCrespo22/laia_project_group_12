@@ -18,7 +18,7 @@ services:
         condition: service_started
     restart: unless-stopped
   mlflow:
-    image: ghcr.io/mlflow/mlflow:v2.10.0
+    image: ghcr.io/mlflow/mlflow:v3.18.0
     ports:
       - "5000:5000"
     command:
@@ -35,6 +35,12 @@ services:
       - "5000"
     volumes:
       - mlflow-data:/mlflow
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5000/health', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
     restart: unless-stopped
 
   prometheus:

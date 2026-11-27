@@ -216,7 +216,11 @@ def _log_candidate(result, directory, filename, serialization, snapshot, columns
     versions = snapshot["provenance"]["versions"]
     mlflow.sklearn.log_model(
         model,
-        "model",
+        name="model",
+        # MLflow 3 defaults to skops, which rejects our own transformer classes
+        # unless every type is listed. cloudpickle is the MLflow 2 behaviour;
+        # serving loads pipeline.joblib, which is pickle-based as well.
+        serialization_format=mlflow.sklearn.SERIALIZATION_FORMAT_CLOUDPICKLE,
         signature=model_signature(columns),
         pip_requirements=[
             f"{package}=={versions[package]}"
@@ -244,7 +248,9 @@ def register_and_promote(tracking, run_id, candidate_f1, dummy_f1, validation_sh
     """Register a selected run as ``staging`` and apply the promotion rule."""
     name = tracking.registered_model
     client = MlflowClient(tracking.tracking_uri)
-    version = mlflow.register_model(f"runs:/{run_id}/model", name).version
+    # MLflow 3 stores the model as a LoggedModel of the run, not as a run artifact.
+    model_id = client.get_run(run_id).outputs.model_outputs[0].model_id
+    version = mlflow.register_model(f"models:/{model_id}", name).version
     client.set_registered_model_alias(name, STAGING_ALIAS, version)
     promoted, reason = decide_promotion(
         candidate_f1,

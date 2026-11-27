@@ -13,7 +13,7 @@ SCRIPT="$DEPLOY_DIR/$(basename "${BASH_SOURCE[0]}")"
 COMPOSE_FILE=compose.vm2.yml
 MODEL_DIR=${MODEL_DIR:-/opt/flight-delay/models}
 REGISTERED_MODEL=${REGISTERED_MODEL:-flight-delay-severity}
-HEALTH_URL=${HEALTH_URL:-http://localhost:8000/health}
+HEALTH_URL=${HEALTH_URL:-http://localhost:8080/health}
 HEALTH_RETRIES=${HEALTH_RETRIES:-30}
 HEALTH_DELAY=${HEALTH_DELAY:-2}
 

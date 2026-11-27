@@ -60,8 +60,13 @@ chmod 600 .env
 
 Then copy `docker/compose.vm2.yml` and the `docker/monitoring/` folder to
 `~/flight-delay/`, set `IMAGE_TAG` to the merge commit, and run
-`docker compose -f compose.vm2.yml pull` and `up -d`. Over the VPN, Grafana is
-at `http://<VM 2 address>:3000` and Prometheus at `http://<VM 2 address>:9090`.
+`docker compose -f compose.vm2.yml pull` and `up -d`. Over the VPN, the API is
+at `http://<VM 2 address>:8080`, Grafana at `http://<VM 2 address>:3000` and
+Prometheus at `http://<VM 2 address>:9090`.
+
+Port 8000 is blocked on the DEI VMs, so VM 2 publishes the API on 8080, and the
+leaderboard registration is `http://<VM 2 address>:8080/classify`. Inside the
+container, and for Prometheus over the Compose network, the API stays on 8000.
 
 ## Model updates on VM 2
 

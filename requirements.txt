@@ -14,7 +14,7 @@ imbalanced-learn==0.12.4
 tsfresh>=0.21.0,<0.22.0
 
 # MLOps & Experiment Tracking
-mlflow>=2.10.0,<3.0.0  # MLflow 3 clients fail on log_model against the 2.10 server
+mlflow>=3.18.0,<4.0.0  # Same major version as the VM 1 server (ghcr.io/mlflow/mlflow:v3.18.0)
 sqlalchemy>=2.0.0,<2.1.0  # MLflow 2 SQL stores do not import with SQLAlchemy 2.1
 dvc>=3.40.0
 

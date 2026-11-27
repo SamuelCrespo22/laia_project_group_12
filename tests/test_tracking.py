@@ -101,8 +101,8 @@ def test_training_logs_parent_and_candidate_runs(tracked):
         "cv.json",
         "classification_report.txt",
         "confusion_matrix.csv",
-        "model",
     } <= names
+    assert len(client.get_run(child.info.run_id).outputs.model_outputs) == 1
 
 
 def test_subgroup_metrics_ignore_small_groups():
@@ -147,6 +147,8 @@ def test_first_run_becomes_champion_and_loads_by_alias(tracked, environment):
     version = client.get_model_version_by_alias("flight-delay-severity", "champion")
     assert version.tags["promotion"] == "First champion"
     assert version.run_id != report["mlflow"]["run_id"]
+    # deploy_model.sh downloads pipeline.joblib from the champion's run.
+    assert "pipeline.joblib" in {a.path for a in client.list_artifacts(version.run_id)}
 
     X, _, _, _ = prepared(environment, "validation")
     mlflow.set_tracking_uri(config["mlflow"]["tracking_uri"])

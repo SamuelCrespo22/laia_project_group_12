@@ -5,7 +5,8 @@ services:
   api:
     image: ghcr.io/samuelcrespo22/laia_project_group_12-serving:${IMAGE_TAG:?Set IMAGE_TAG to a commit SHA on main}
     ports:
-      - "8000:8000"
+      # The leaderboard reaches VMs on 8080; 8000 is blocked on the DEI network.
+      - "8080:8000"
     environment:
       MODEL_PATH: /app/models/model.joblib
       MODEL_VERSION: ${MODEL_VERSION:-unknown}

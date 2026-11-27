@@ -156,6 +156,14 @@ def test_vm2_grafana_requires_a_password():
     assert password.startswith("${GRAFANA_ADMIN_PASSWORD:?")
 
 
+def test_vm2_publishes_the_api_where_the_deploy_script_checks_it():
+    # Port 8000 is blocked on the DEI VMs; the leaderboard uses 8080.
+    api = load_yaml(DOCKER_DIR / "compose.vm2.yml")["services"]["api"]
+    assert api["ports"] == ["8080:8000"]
+    script = (PROJECT_ROOT / "scripts" / "deploy_model.sh").read_text(encoding="utf-8")
+    assert "HEALTH_URL=${HEALTH_URL:-http://localhost:8080/health}" in script
+
+
 def test_prometheus_scrapes_the_api_metrics():
     config = load_yaml(MONITORING_DIR / "prometheus.yml")
     api = next(

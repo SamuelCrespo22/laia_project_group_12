@@ -203,6 +203,16 @@ serving:
   host: "0.0.0.0"
   port: 8000
 
+monitoring:
+  # Delayed-label evaluation (python -m src.monitoring.performance).
+  performance:
+    # Same minimum as the training subgroup metrics.
+    min_subgroup_support: 100
+    # A group is degraded when its Macro F1 is this far below the window's.
+    degradation_margin: 0.10
+    # Subgroups are evaluated over the rounds predicted in the last N days.
+    window_days: 7
+
 eda:
   arrival_delay_thresholds_minutes:
     moderate: 15

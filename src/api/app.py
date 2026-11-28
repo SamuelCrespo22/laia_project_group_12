@@ -162,6 +162,9 @@ def classify_flights(
         "discarded_fields": dict(result.discarded_fields),
         "classifications": result.classifications,
     }
+    if result.probabilities is not None:
+        entry["class_order"] = result.class_order
+        entry["probabilities"] = result.probabilities
     # The sandbox sends the same January flights every 5 minutes: inputs are
     # kept only where they matter for drift.
     if mode == "live":

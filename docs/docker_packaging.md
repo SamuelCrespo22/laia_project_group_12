@@ -100,6 +100,33 @@ version is not retried. Output is in `deploy_model.log`.
 To update the code, change `IMAGE_TAG` in `.env` and run
 `docker compose -f compose.vm2.yml pull` and `up -d`.
 
+## Delayed-label evaluation on VM 2
+
+`python -m src.monitoring.performance` joins the stored `/classify` batches
+with the `/labels` deliveries by `request_id`. For each round (one leaderboard
+request), each day and the whole history, it reports Macro F1, one-vs-rest AUC
+and the confusion matrix. Over the last 7 days, airlines and
+airports with at least 100 labelled flights are flagged when their Macro F1 is
+more than 0.10 below the overall score (`monitoring.performance` in
+`configs/config.yaml`).
+
+- AUC uses the class probabilities that the API writes to the traffic log
+  (never to the response), so batches scored by an older image have none.
+- Subgroups need the inputs, which only live traffic keeps.
+
+It runs in the serving image, so VM 2 needs nothing else installed:
+
+```bash
+sudo mkdir -p /opt/flight-delay/reports
+sudo chown 10001:10001 /opt/flight-delay/reports
+```
+
+```cron
+15 * * * * cd $HOME/flight-delay && for mode in live sandbox; do docker compose -f compose.vm2.yml run --rm --no-deps -v /opt/flight-delay/reports:/app/reports api python -m src.monitoring.performance --mode $mode; done >> performance.log 2>&1
+```
+
+Reports: `/opt/flight-delay/reports/performance/<mode>/performance.{json,md}`.
+
 ## MLflow upgrades on VM 1
 
 MLflow migrates its database schema in one direction only, so upgrade a

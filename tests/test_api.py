@@ -5,6 +5,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from src.api.app import app
+from src.data.preprocessor import CLASSES
 from src.models.smoke import DISTANCE_BY_CLASS
 
 client = TestClient(app)
@@ -223,6 +224,43 @@ def test_other_traffic_is_stored_apart_without_inputs(traffic_dir, mode, folder)
     assert entry["mode"] == folder
     assert "instances" not in entry
     assert not (traffic_dir / "live").exists()
+
+
+def test_class_probabilities_are_stored_for_classified_flights(traffic_dir):
+    instances = [flight("severe_delay"), None, flight("on_time")]
+    client.post(
+        "/classify", json={"request_id": "r1", "mode": "live", "instances": instances}
+    )
+
+    [entry] = stored(traffic_dir, "live", "predictions")
+    assert sorted(entry["class_order"]) == sorted(CLASSES)
+    first, fallback, last = entry["probabilities"]
+    assert fallback is None
+    assert sum(first) == pytest.approx(1, abs=1e-3)
+    assert entry["class_order"][first.index(max(first))] == "severe_delay"
+    assert entry["class_order"][last.index(max(last))] == "on_time"
+
+
+def test_probability_failure_changes_nothing_but_the_log(
+    smoke_model, monkeypatch, traffic_dir
+):
+    class NoProbabilities:
+        classes_ = smoke_model.classes_
+
+        def predict(self, frame):
+            return smoke_model.predict(frame)
+
+        def predict_proba(self, frame):
+            raise ValueError("broken")
+
+    monkeypatch.setattr(app.state, "model", NoProbabilities())
+    response = client.post(
+        "/classify", json={"mode": "live", "instances": [flight("moderate_delay")]}
+    )
+
+    assert response.json() == {"classifications": ["moderate_delay"]}
+    [entry] = stored(traffic_dir, "live", "predictions")
+    assert "probabilities" not in entry and "class_order" not in entry
 
 
 def test_storage_failure_does_not_fail_classify(monkeypatch):

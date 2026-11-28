@@ -27,7 +27,8 @@ automated deployment needs self-hosted GitHub Actions runners on them.
 | Training | `src/models/train.py` | Done: numeric baseline on a sample |
 | Experiment tracking | `src/models/tracking.py` | Done: runs, registry and aliases |
 | Inference | `src/api/app.py`, `src/api/inference.py` | Done: leaderboard `/classify` and `/labels`, one class per instance |
-| Traffic log | `src/monitoring/traffic.py` | Done: predictions and labels by mode, input for monitoring |
+| Traffic log | `src/monitoring/traffic.py` | Done: predictions (with class probabilities) and labels by mode, input for monitoring |
+| Delayed-label evaluation | `src/monitoring/performance.py` | Done: Macro F1, AUC and confusion matrix per round and day; degraded airlines and airports flagged (4.3) |
 | VM deployment and registration | VM 1 and VM 2 | Planned (#14, #10) |
 | System monitoring | `src/monitoring/metrics.py`, `docker/monitoring/` | Done: `/metrics`, Prometheus and Grafana dashboard on VM 2 (#22) |
 | Drift, label evaluation, alerts | Prometheus rules, traffic log | Planned (Milestone 4) |
@@ -45,6 +46,7 @@ automated deployment needs self-hosted GitHub Actions runners on them.
 - **Monitoring:** the API exposes request, latency, error and prediction
   metrics on `/metrics`, scraped by Prometheus on VM 2 over the Compose network
   and shown in Grafana. Metric labels take only fixed values (mode, class,
-  contract field), so requests cannot create new series. Input drift and
-  performance by airline and origin airport are planned once delayed labels
-  arrive.
+  contract field), so requests cannot create new series. Delayed labels are
+  joined with the stored predictions by `request_id` in periodic reports (Macro
+  F1, AUC, confusion matrix, and airlines or airports far below the overall
+  score). Input drift is planned.

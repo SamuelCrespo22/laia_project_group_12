@@ -324,7 +324,9 @@ def test_classify_endpoint_uses_the_training_feature_function(monkeypatch):
         ]
     }
     assert TestClient(api_app.app).post("/classify", json=payload).status_code == 200
-    assert len(calls) == 1
+    # predict, then predict_proba for the traffic log, each on the same batch.
+    assert len(calls) == 2
+    assert all(len(frame) == 1 for frame in calls)
 
 
 # ------------------------------------------------------------ make_dataset
